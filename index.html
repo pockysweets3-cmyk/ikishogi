@@ -1,0 +1,1590 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>生将棋 3D</title>
+<style>
+html,body{margin:0;height:100%;background:#1a120c;overflow:hidden;touch-action:manipulation;user-select:none;-webkit-user-select:none;font-family:"Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif}
+#c{position:fixed;left:0;top:0;width:100%;height:100%;display:block}
+#over{position:fixed;left:0;top:0;right:0;bottom:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:#000b;z-index:20;font-size:72px;font-weight:900;color:#ffd77a}
+#over.on{display:flex}
+#over button{font:inherit;font-size:24px;padding:.5em 1.4em;border-radius:999px;border:0;background:#ffd77a;color:#2a1a0c;font-weight:800}
+#promo{position:fixed;left:0;top:0;right:0;bottom:0;display:none;align-items:center;justify-content:center;gap:28px;background:#0008;z-index:15}
+#promo.on{display:flex}
+#promo button{width:96px;height:112px;border:0;border-radius:14px;background:#f1d79c;color:#2a1a0c;font:900 60px "Hiragino Mincho ProN","Yu Mincho",serif;box-shadow:0 6px 0 #8a6a32,0 10px 18px #0008}
+#promo button#pyes{color:#c3281a}
+#promo button:active{transform:translateY(4px);box-shadow:0 2px 0 #8a6a32}
+#turn{position:fixed;left:50%;top:14px;transform:translateX(-50%);display:none;padding:.3em 1.1em;border-radius:999px;background:#ffd77a;color:#2a1a0c;font-weight:900;font-size:20px;letter-spacing:.08em;z-index:12;box-shadow:0 3px 0 #8a6a32;pointer-events:none;white-space:nowrap}
+#turn.on{display:block}
+#turn.warn{background:#c3281a;color:#fff;box-shadow:0 3px 0 #6d140b}
+#ote{position:fixed;left:0;right:0;top:36%;text-align:center;font-weight:900;font-size:clamp(72px,24vw,150px);color:#c3281a;-webkit-text-stroke:3px #fff;text-shadow:0 6px 0 #6d140b,0 10px 24px #000a;opacity:0;pointer-events:none;z-index:13}
+#ote.go{animation:ote 1.4s ease-out}
+@keyframes ote{0%{opacity:0;transform:scale(2)}15%{opacity:1;transform:scale(1)}70%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1)}}
+#mpBtn{position:fixed;left:12px;top:12px;display:none;z-index:12;padding:.35em .9em;border-radius:999px;border:0;background:#3b2a1a;color:#ffd77a;font:800 15px "Hiragino Mincho ProN","Yu Mincho",serif;box-shadow:0 2px 0 #0008}
+#turn.opp{background:#4a3a2a;color:#d9c9a8;box-shadow:0 3px 0 #1a120c}
+#overText.small{font-size:34px}
+#lobby{position:fixed;left:0;top:0;right:0;bottom:0;display:none;align-items:center;justify-content:center;background:#000b;z-index:18;color:#ffd77a}
+#lobby.on{display:flex}
+.lbBox{display:flex;flex-direction:column;align-items:center;gap:18px;min-width:260px}
+.lbs{display:none;flex-direction:column;align-items:center;gap:14px}
+#lobby[data-v=home] .lbHome,#lobby[data-v=wait] .lbWait,#lobby[data-v=enter] .lbEnter,#lobby[data-v=mk] .lbMk,#lobby[data-v=jn] .lbJn{display:flex}
+.lbBox textarea{width:min(86vw,360px);height:5.2em;font:12px/1.3 monospace;border:0;border-radius:10px;padding:.5em;background:#f1d79c;color:#2a1a0c;resize:none;word-break:break-all}
+#jnOut{display:none;flex-direction:column;align-items:center;gap:14px}
+#jnOut.on{display:flex}
+.lbBox button.sm{font-size:17px;padding:.4em 1.2em}
+.lbBox button{font:800 22px "Hiragino Mincho ProN","Yu Mincho",serif;padding:.55em 1.6em;border-radius:999px;border:0;background:#ffd77a;color:#2a1a0c;box-shadow:0 4px 0 #8a6a32}
+.lbBox button#lbX{background:none;color:#ffd77a99;box-shadow:none;font-size:16px}
+#lbCode{font:900 84px/1 "Hiragino Mincho ProN","Yu Mincho",serif;letter-spacing:.12em;padding-left:.12em}
+.lbNote{font-size:18px;opacity:.8}
+#lbIn{font:900 56px/1 "Hiragino Mincho ProN","Yu Mincho",serif;width:4.4ch;text-align:center;letter-spacing:.12em;text-transform:uppercase;border:0;border-radius:14px;padding:.2em .1em;background:#f1d79c;color:#2a1a0c}
+#lbMsg{min-height:1.4em;font-size:16px;color:#ff9a8a}
+#msg{position:fixed;left:0;top:0;right:0;bottom:0;display:none;align-items:center;justify-content:center;color:#ffd77a;font-size:18px;text-align:center;padding:24px}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="over"><div id="overText"></div><button id="again">もう一局</button></div>
+<div id="promo"><button id="pno"></button><button id="pyes"></button></div>
+<div id="turn">あなたの番</div>
+<div id="ote">王手</div>
+<button id="mpBtn">対人</button>
+<div id="lobby" data-v="home"><div class="lbBox">
+<div class="lbs lbHome"><button id="lbMake">部屋をつくる</button><button id="lbJoin">部屋に入る</button></div>
+<div class="lbs lbWait"><div id="lbCode"></div><div class="lbNote">待機中</div></div>
+<div class="lbs lbEnter"><input id="lbIn" maxlength="4" autocapitalize="off" autocomplete="off" spellcheck="false"><button id="lbGo">入る</button></div>
+<div class="lbs lbMk"><textarea id="mkCode" readonly></textarea><button class="sm" id="mkCopy">コピー</button><textarea id="mkAns" placeholder="相手から届いたコード" spellcheck="false"></textarea><button id="mkGo">つなぐ</button></div>
+<div class="lbs lbJn"><textarea id="jnOffer" placeholder="相手から届いたコード" spellcheck="false"></textarea><button id="jnGo">コードを作る</button><div id="jnOut"><textarea id="jnCode" readonly></textarea><button class="sm" id="jnCopy">コピー</button></div></div>
+<div id="lbMsg"></div>
+<button id="lbX">とじる</button>
+</div></div>
+<div id="msg"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ===== LOGIC START =====
+const KANJI={P:['歩','と'],L:['香','杏'],N:['桂','圭'],S:['銀','全'],G:['金','金'],B:['角','馬'],R:['飛','龍']};
+const NAME={P:['歩','と金'],L:['香','成香'],N:['桂','成桂'],S:['銀','成銀'],G:['金','金'],B:['角','馬'],R:['飛','龍'],K:['王','王']};
+const DROPT=['P','L','N','S','G','B','R'];
+const PROM=new Set(['P','L','N','S','B','R']);
+const BASEV={P:1,L:3,N:3,S:5,G:6,B:8,R:10,K:1000};
+const SIDE=['自分の','相手の'];
+const DIRS8=[[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+const DIRS4=[[-1,0],[1,0],[0,-1],[0,1]];
+let _id=1; const nid=()=>_id++;
+function glyph(p){ if(p.t==='K') return p.o===0?'王':'玉'; return KANJI[p.t][p.pr?1:0]; }
+function pname(p){ return NAME[p.t][p.pr?1:0]; }
+function val(p){ return BASEV[p.t]+(p.pr&&p.t!=='K'?(p.t==='P'?5:2):0); }
+function mkp(t,o){ return {t,o,pr:false,id:nid()}; }
+function zone(o,r){ return o===0 ? r<=2 : r>=6; }
+function inb(r,c){ return r>=0&&r<=8&&c>=0&&c<=8; }
+// 乱数: 対戦では両者が同じ種から同じ列を作る
+let RNG=Math.random;
+function setRng(f){ RNG=f||Math.random; }
+function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; let t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+function stateHash(st){
+  let h=5381; const add=n=>{ h=((h<<5)+h+n)|0; };
+  for(let r=0;r<9;r++)for(let c=0;c<9;c++){ const p=st.board[r][c]; add(p?p.t.charCodeAt(0)*4+p.o*2+(p.pr?1:0)+1:0); }
+  for(const o of [0,1]) for(const t of DROPT) add(st.hands[o][t]);
+  return h>>>0;
+}
+function shuffle(a,rng=RNG){ for(let i=a.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+
+function newState(){
+  const b=Array.from({length:9},()=>Array(9).fill(null));
+  const back=['L','N','S','G','K','G','S','N','L'];
+  for(let c=0;c<9;c++){ b[8][c]=mkp(back[c],0); b[0][c]=mkp(back[c],1); b[6][c]=mkp('P',0); b[2][c]=mkp('P',1); }
+  b[7][7]=mkp('R',0); b[7][1]=mkp('B',0); b[1][1]=mkp('R',1); b[1][7]=mkp('B',1);
+  const h=()=>({P:0,L:0,N:0,S:0,G:0,B:0,R:0,K:0});
+  return {board:b,hands:[h(),h()],last:[]};
+}
+function cloneState(st){
+  return {board:st.board.map(row=>row.map(p=>p?{...p}:null)),hands:[{...st.hands[0]},{...st.hands[1]}],last:[]};
+}
+
+function pieceMoves(st,r,c){
+  const p=st.board[r][c]; const f=p.o===0?-1:1; const res=[];
+  const step=(dr,dc)=>{ const rr=r+dr,cc=c+dc; if(!inb(rr,cc))return; const q=st.board[rr][cc]; if(q&&q.o===p.o)return; res.push([rr,cc]); };
+  const slide=(dr,dc)=>{ let rr=r+dr,cc=c+dc; while(inb(rr,cc)){ const q=st.board[rr][cc]; if(q){ if(q.o!==p.o)res.push([rr,cc]); break; } res.push([rr,cc]); rr+=dr; cc+=dc; } };
+  const gold=()=>{ [[f,0],[f,-1],[f,1],[0,-1],[0,1],[-f,0]].forEach(d=>step(d[0],d[1])); };
+  const t=p.t;
+  if(p.pr&&(t==='P'||t==='L'||t==='N'||t==='S')) gold();
+  else if(t==='P') step(f,0);
+  else if(t==='L') slide(f,0);
+  else if(t==='N'){ step(2*f,-1); step(2*f,1); }
+  else if(t==='S'){ [[f,-1],[f,0],[f,1],[-f,-1],[-f,1]].forEach(d=>step(d[0],d[1])); }
+  else if(t==='G') gold();
+  else if(t==='K') DIRS8.forEach(d=>step(d[0],d[1]));
+  else if(t==='B'){ [[-1,-1],[-1,1],[1,-1],[1,1]].forEach(d=>slide(d[0],d[1])); if(p.pr) DIRS4.forEach(d=>step(d[0],d[1])); }
+  else if(t==='R'){ DIRS4.forEach(d=>slide(d[0],d[1])); if(p.pr) [[-1,-1],[-1,1],[1,-1],[1,1]].forEach(d=>step(d[0],d[1])); }
+  return res;
+}
+function dropOk(t,o,r){
+  const far=o===0?0:8, far2=o===0?1:7;
+  if((t==='P'||t==='L')&&r===far)return false;
+  if(t==='N'&&(r===far||r===far2))return false;
+  return true;
+}
+function dropSquares(st,t,o){
+  const res=[];
+  for(let r=0;r<9;r++)for(let c=0;c<9;c++){
+    if(st.board[r][c])continue;
+    if(!dropOk(t,o,r))continue;
+    res.push([r,c]);
+  }
+  return res;
+}
+// 成れなければ動けなくなる場合は強制成り
+function mustPro(t,o,r){
+  const far=o===0?0:8, far2=o===0?1:7;
+  if(t==='P'||t==='L') return r===far;
+  if(t==='N') return r===far||r===far2;
+  return false;
+}
+// 成れるか(成る・成らないを選べる位置か)
+function canPro(p,o,fr,tr){
+  return !p.pr&&PROM.has(p.t)&&(zone(o,fr)||zone(o,tr));
+}
+// 実行。取った駒を返す。mv.promote: true/false=選択済み、未指定=駒が勝手に決める
+function applyMoveOn(st,mv,o){
+  if(mv.drop){
+    st.hands[o][mv.t]--;
+    st.board[mv.tr][mv.tc]={t:mv.t,o,pr:false,id:mv.id||0};
+    st.last=[[mv.tr,mv.tc]];
+    return null;
+  }
+  const p=st.board[mv.fr][mv.fc]; const q=st.board[mv.tr][mv.tc];
+  st.board[mv.fr][mv.fc]=null; st.board[mv.tr][mv.tc]=p;
+  if(q){ st.hands[o][q.t]++; }
+  if(canPro(p,o,mv.fr,mv.tr)){
+    if(mustPro(p.t,o,mv.tr)) p.pr=true;
+    else if(mv.promote===true) p.pr=true;
+    else if(mv.promote===undefined&&RNG()<0.5) p.pr=true;
+  }
+  st.last=[[mv.fr,mv.fc],[mv.tr,mv.tc]];
+  return q;
+}
+// 暴走中の駒が敵陣に絡む手で、成る・成らないを選べる局面の判定
+function promoChoices(plan,o){
+  const pk=plan.pick;
+  if(!pk||pk.kind!=='b'||!plan.mvSteps)return [];
+  const p=pk.p; let pr=p.pr; const res=[];
+  plan.mvSteps.forEach((s,i)=>{
+    if(s.fixed||pr||!PROM.has(p.t))return;
+    if(!(zone(o,s.fr[0])||zone(o,s.to[0])))return;
+    if(mustPro(p.t,o,s.to[0]))return;
+    res.push(i);
+  });
+  return res;
+}
+// o の王が相手の駒に取られる位置(王手されている)か
+function inCheck(st,o){
+  const k=findKing(st,o); if(!k)return false;
+  for(let r=0;r<9;r++)for(let c=0;c<9;c++){
+    const p=st.board[r][c]; if(!p||p.o===o)continue;
+    if(pieceMoves(st,r,c).some(m=>m[0]===k[0]&&m[1]===k[1]))return true;
+  }
+  return false;
+}
+function kingAlive(st,o){ return st.board.some(row=>row.some(p=>p&&p.t==='K'&&p.o===o)); }
+function winner(st){ if(!kingAlive(st,0))return 1; if(!kingAlive(st,1))return 0; return -1; }
+
+// ---- 暴走 ----
+function findKing(st,o){
+  for(let r=0;r<9;r++)for(let c=0;c<9;c++){ const p=st.board[r][c]; if(p&&p.t==='K'&&p.o===o) return [r,c]; }
+  return null;
+}
+// list: [重み, 名前, 関数]。関数は成立しなければ null を返す。
+function chooseAct(list,rng,force){
+  const l=force?list.filter(a=>a[1]===force):list.slice();
+  while(l.length){
+    const tot=l.reduce((a,x)=>a+x[0],0); let x=rng()*tot, i=0;
+    for(;i<l.length;i++){ x-=l[i][0]; if(x<0)break; }
+    if(i>=l.length) i=l.length-1;
+    const fn=l.splice(i,1)[0][2]; const pl=fn(); if(pl)return pl;
+  }
+  return null;
+}
+function planRampage(st,o,rng=RNG,force=null){
+  const pool=[];
+  for(let r=0;r<9;r++)for(let c=0;c<9;c++){ const p=st.board[r][c]; if(p&&p.o===o) pool.push({kind:'b',r,c,p}); }
+  for(const t of DROPT) for(let i=0;i<st.hands[o][t];i++) pool.push({kind:'h',t});
+  if(!pool.length) return null;
+  const run=pk=>pk.kind==='h'?planHand(st,o,pk,rng,force):planBoard(st,o,pk,rng,force);
+  if(!force) return run(pool[Math.floor(rng()*pool.length)]);
+  for(const pk of shuffle(pool.slice(),rng)){ const pl=run(pk); if(pl)return pl; }
+  return null;
+}
+function planHand(st,o,pick,rng,force){
+  const sq=dropSquares(st,pick.t,o), nm=NAME[pick.t][0], side=SIDE[o], ek=findKing(st,1-o);
+  const sleep=()=>({kind:'sleep',pick,text:`${side}持ち駒の${nm}は駒台で寝ている…`,apply(){}});
+  const acts=[
+    [55,'return',()=>{
+      if(!sq.length)return null;
+      const [r,c]=sq[Math.floor(rng()*sq.length)];
+      return {kind:'return',pick,to:[r,c],text:`${side}持ち駒の${nm}が勝手に盤へ飛び出した`,apply(){ applyMoveOn(st,{drop:true,t:pick.t,tr:r,tc:c,id:nid()},o); }};
+    }],
+    [3,'ambush',()=>{
+      const m=[];
+      for(let rr=0;rr<9;rr++)for(let cc=0;cc<9;cc++){ const q=st.board[rr][cc]; if(q&&q.o!==o&&q.t!=='K'&&dropOk(pick.t,o,rr)) m.push([rr,cc,q]); }
+      if(!m.length)return null;
+      const [rr,cc,q]=m[Math.floor(rng()*m.length)];
+      return {kind:'ambush',pick,to:[rr,cc],victim:q,text:`${side}持ち駒の${nm}が敵に奇襲をかけた`,apply(){
+        st.hands[o][pick.t]--;
+        const vv=st.board[rr][cc];
+        st.board[rr][cc]={t:pick.t,o,pr:false,id:nid()};
+        if(vv) st.hands[o][vv.t]++;
+        st.last=[[rr,cc]];
+      }};
+    }],
+    [5,'dance',()=>({kind:'dance',pick,text:`${side}持ち駒の${nm}が駒台で踊りだした`,apply(){}})],
+    [4,'sleep',sleep],
+    [0.15,'assassin',()=>{
+      if(!ek)return null;
+      const v=st.board[ek[0]][ek[1]];
+      return {kind:'assassin',pick,to:ek,victim:v,text:`${side}持ち駒の${nm}が王を倒しに行った`,apply(){
+        st.hands[o][pick.t]--;
+        const vv=st.board[ek[0]][ek[1]];
+        st.board[ek[0]][ek[1]]={t:pick.t,o,pr:false,id:nid()};
+        if(vv) st.hands[o][vv.t]++;
+        st.last=[[ek[0],ek[1]]];
+      }};
+    }],
+  ];
+  return chooseAct(acts,rng,force)||(force?null:sleep());
+}
+function planBoard(st,o,pick,rng,force){
+  const {r,c,p}=pick; const f=o===0?-1:1; const nm=pname(p), side=SIDE[o];
+  const rnd=a=>a[Math.floor(rng()*a.length)];
+  const tgt=(rr,cc)=>{ const q=st.board[rr][cc]; return q&&q.o!==o?q:null; };
+  const capTxt=q=>q?` → ${SIDE[1-o]}${pname(q)}を取る!`:'';
+  const mv=(kind,rr,cc,verb)=>{
+    const q=tgt(rr,cc);
+    return {kind,cap:!!q,pick,fr:[r,c],to:[rr,cc],victim:q,mvSteps:[{fr:[r,c],to:[rr,cc]}],text:`${side}${nm}が${verb}${capTxt(q)}`,apply(ch){ applyMoveOn(st,{fr:r,fc:c,tr:rr,tc:cc,promote:ch?ch[0]:undefined},o); }};
+  };
+  const simple=(kind,verb)=>()=>({kind,pick,fr:[r,c],text:`${side}${nm}が${verb}`,apply(){}});
+  const emptyWithin=rad=>{
+    const m=[];
+    for(let rr=Math.max(0,r-rad);rr<=Math.min(8,r+rad);rr++)for(let cc=Math.max(0,c-rad);cc<=Math.min(8,c+rad);cc++) if(!st.board[rr][cc]) m.push([rr,cc]);
+    return m;
+  };
+  const adjEn=()=>{
+    const m=[];
+    for(const [dr,dc] of DIRS8){ const rr=r+dr,cc=c+dc; if(!inb(rr,cc))continue; const q=st.board[rr][cc]; if(q&&q.o!==o) m.push([rr,cc,q]); }
+    return m;
+  };
+  const ek=findKing(st,1-o), mk=findKing(st,o);
+
+  // --- 普通・移動系 ---
+  const normal=()=>{ const m=pieceMoves(st,r,c); if(!m.length)return null; const [rr,cc]=rnd(m); return mv('normal',rr,cc,'勝手に動いた'); };
+  const stroll=()=>{
+    const m=DIRS8.map(d=>[r+d[0],c+d[1]]).filter(([rr,cc])=>inb(rr,cc)&&!(st.board[rr][cc]&&st.board[rr][cc].o===o));
+    if(!m.length)return null; const [rr,cc]=rnd(m); return mv('stroll',rr,cc,'立ち上がって歩き出した');
+  };
+  const wander=()=>{ const m=emptyWithin(3).filter(([rr,cc])=>Math.max(Math.abs(rr-r),Math.abs(cc-c))>=2); if(!m.length)return null; const [rr,cc]=rnd(m); return mv('wander',rr,cc,'ふらっと散歩に出た'); };
+  const dash=()=>{
+    let last=null; let rr=r+f;
+    while(inb(rr,c)){ const q=st.board[rr][c]; if(!q){ last=rr; rr+=f; continue; } if(q.o!==o) last=rr; break; }
+    if(last===null)return null; return mv('dash',last,c,'前へ突進した');
+  };
+  const flee=()=>{
+    let last=null; let rr=r-f;
+    for(let s=0;s<3&&inb(rr,c)&&!st.board[rr][c];s++){ last=rr; rr-=f; }
+    if(last===null)return null; return mv('flee',last,c,'血相を変えて逃げ出した');
+  };
+  const protect=()=>{
+    if(!mk||p.t==='K')return null;
+    if(Math.max(Math.abs(mk[0]-r),Math.abs(mk[1]-c))<=1)return null;
+    const m=[]; for(const [dr,dc] of DIRS8){ const rr=mk[0]+dr,cc=mk[1]+dc; if(inb(rr,cc)&&!st.board[rr][cc]) m.push([rr,cc]); }
+    if(!m.length)return null; const [rr,cc]=rnd(m); return mv('protect',rr,cc,'王を守りに走った');
+  };
+  const warp=()=>{ const m=emptyWithin(8); if(!m.length)return null; const [rr,cc]=rnd(m); return mv('warp',rr,cc,'ワープした'); };
+  const toHand=()=>{ if(p.t==='K')return null; return {kind:'tohand',pick,fr:[r,c],text:`${side}${nm}が駒台へ帰っていった`,apply(){ st.board[r][c]=null; st.hands[o][p.t]++; st.last=[[r,c]]; }}; };
+  const push=()=>{
+    const cand=[];
+    for(const [dr,dc] of DIRS4){ const nr=r+dr,nc=c+dc,br=nr+dr,bc=nc+dc; if(!inb(nr,nc)||!inb(br,bc))continue; const q=st.board[nr][nc]; if(!q||st.board[br][bc])continue; cand.push([nr,nc,br,bc,q]); }
+    if(!cand.length)return null;
+    const [nr,nc,br,bc,q]=rnd(cand);
+    return {kind:'push',pick,nb:{q,from:[nr,nc],to:[br,bc]},text:`${side}${nm}が${pname(q)}を突き飛ばした`,apply(){ st.board[br][bc]=q; st.board[nr][nc]=null; st.last=[[nr,nc],[br,bc]]; }};
+  };
+  const swap=()=>{
+    const al=[]; for(let rr=0;rr<9;rr++)for(let cc=0;cc<9;cc++){ const q=st.board[rr][cc]; if(q&&q.o===o&&q!==p) al.push([rr,cc,q]); }
+    if(!al.length)return null; const [rr,cc,q]=rnd(al);
+    return {kind:'swap',pick,other:{q,at:[rr,cc]},text:`${side}${nm}と${pname(q)}が勝手に入れ替わった`,apply(){ st.board[r][c]=q; st.board[rr][cc]=p; st.last=[[r,c],[rr,cc]]; }};
+  };
+  const promo=()=>{
+    if(!PROM.has(p.t))return null;
+    if(!p.pr) return {kind:'promo',pick,text:`${side}${nm}が勝手に成った`,apply(){ p.pr=true; st.last=[[r,c]]; }};
+    return {kind:'promo',pick,text:`${side}${nm}が勝手に元に戻った`,apply(){ p.pr=false; st.last=[[r,c]]; }};
+  };
+  const convert=()=>{ if(p.t==='K')return null; return {kind:'convert',pick,fr:[r,c],text:`${side}${nm}が寝返った`,apply(){ p.o=1-o; st.last=[[r,c]]; }}; };
+
+  // --- 意味のない動き ---
+  const sleep=simple('sleep','寝ていた…');
+  const dance=simple('dance','踊りだした');
+  const exercise=simple('exercise','体操を始めた');
+  const bow=simple('bow','お辞儀をした');
+  const spin=simple('spin','くるくる回った');
+  const duet=()=>{
+    const al=[]; for(let rr=0;rr<9;rr++)for(let cc=0;cc<9;cc++){ const q=st.board[rr][cc]; if(q&&q!==p) al.push([rr,cc,q]); }
+    if(!al.length)return null; const [rr,cc,q]=rnd(al);
+    return {kind:'duet',pick,other:{q,at:[rr,cc]},text:`${side}${nm}が${pname(q)}と踊りだした`,apply(){}};
+  };
+
+  // --- 強い動き ---
+  const rush=()=>{
+    if(!ek)return null;
+    let cr=r,cc=c,cd=(r-ek[0])**2+(c-ek[1])**2,moved=false;
+    for(let s=0;s<3;s++){
+      let best=null;
+      for(const [dr,dc] of DIRS8){
+        const nr=cr+dr,nc=cc+dc; if(!inb(nr,nc))continue;
+        const q=st.board[nr][nc]; const self=(nr===r&&nc===c);
+        if(q&&!self&&q.o===o)continue;
+        const d=(nr-ek[0])**2+(nc-ek[1])**2;
+        if(d<cd&&(!best||d<best.d)) best={nr,nc,d,q:self?null:q};
+      }
+      if(!best)break;
+      cr=best.nr; cc=best.nc; cd=best.d; moved=true;
+      if(best.q)break;
+    }
+    if(!moved)return null;
+    return mv('rush',cr,cc,'王めがけて突撃した');
+  };
+  const stomp=()=>{
+    const m=[];
+    for(let rr=0;rr<9;rr++)for(let cc=0;cc<9;cc++){ const q=st.board[rr][cc]; if(!q||q.o===o)continue; const d=Math.max(Math.abs(rr-r),Math.abs(cc-c)); if(d>=2&&d<=4) m.push([rr,cc]); }
+    if(!m.length)return null; const [rr,cc]=rnd(m); return mv('stomp',rr,cc,'跳び上がって踏みつけた');
+  };
+  const spinAttack=()=>{
+    const adj=adjEn(); if(!adj.length)return null;
+    return {kind:'spin_attack',pick,fr:[r,c],victims:adj.map(([rr,cc,q])=>({q,at:[rr,cc]})),text:`${side}${nm}が回転攻撃を始めた`,apply(){
+      for(const [rr,cc,q] of adj){ st.board[rr][cc]=null; st.hands[o][q.t]++; }
+      st.last=[[r,c]];
+    }};
+  };
+  const fight=()=>{
+    const adj=adjEn(); if(!adj.length)return null;
+    const e=rnd(adj), win=rng()<0.5;
+    return {kind:'fight',pick,fr:[r,c],foe:{q:e[2],at:[e[0],e[1]]},win,text:`${side}${nm}が${pname(e[2])}と殴り合いを始めた`,apply(){
+      if(win){ st.board[e[0]][e[1]]=null; st.hands[o][e[2].t]++; }
+      else { st.board[r][c]=null; st.hands[1-o][p.t]++; }
+      st.last=[[r,c],[e[0],e[1]]];
+    }};
+  };
+  const steal=()=>{
+    const ts=DROPT.filter(t=>st.hands[1-o][t]>0); if(!ts.length)return null;
+    const t=rnd(ts);
+    return {kind:'steal',pick,fr:[r,c],t,text:`${side}${nm}が相手の駒台から${NAME[t][0]}を盗んだ`,apply(){ st.hands[1-o][t]--; st.hands[o][t]++; }};
+  };
+  const assassin=()=>{ if(!ek)return null; return mv('assassin',ek[0],ek[1],'王を倒しに歩き出した'); };
+
+  // --- 対局に影響する動き(新) ---
+  const advance=()=>{
+    const m=[]; let rr=r+f;
+    for(let s=0;s<2&&inb(rr,c);s++){
+      const q=st.board[rr][c];
+      if(q&&q.o===o)break;
+      m.push(rr); if(q)break; rr+=f;
+    }
+    if(!m.length)return null;
+    const t=rnd(m); return mv('advance',t,c,'ずんずん前へ進んだ');
+  };
+  const recruit=()=>{
+    const ts=DROPT.filter(t=>st.hands[o][t]>0); if(!ts.length)return null;
+    const t=rnd(ts); const m=[];
+    for(const [dr,dc] of DIRS8){ const rr=r+dr,cc=c+dc; if(inb(rr,cc)&&!st.board[rr][cc]&&dropOk(t,o,rr)) m.push([rr,cc]); }
+    if(!m.length)return null; const [rr,cc]=rnd(m);
+    return {kind:'recruit',pick,fr:[r,c],t,to:[rr,cc],text:`${side}${nm}が持ち駒の${NAME[t][0]}を呼び出した`,apply(){
+      st.hands[o][t]--; st.board[rr][cc]={t,o,pr:false,id:nid()}; st.last=[[rr,cc]];
+    }};
+  };
+  const throwP=()=>{
+    const cand=[];
+    for(const [dr,dc] of DIRS8){ const nr=r+dr,nc=c+dc; if(inb(nr,nc)&&st.board[nr][nc]) cand.push([nr,nc,st.board[nr][nc]]); }
+    if(!cand.length)return null;
+    const em=emptyWithin(4).filter(([rr,cc])=>Math.max(Math.abs(rr-r),Math.abs(cc-c))>=2);
+    if(!em.length)return null;
+    const [nr,nc,q]=rnd(cand); const [br,bc]=rnd(em);
+    return {kind:'throw',pick,fr:[r,c],nb:{q,from:[nr,nc],to:[br,bc]},text:`${side}${nm}が${pname(q)}を放り投げた`,apply(){
+      st.board[br][bc]=q; st.board[nr][nc]=null;
+      st.last=[[nr,nc],[br,bc]];
+    }};
+  };
+  const combo=()=>{
+    const m1=pieceMoves(st,r,c).filter(([rr,cc])=>{ const q=st.board[rr][cc]; return !(q&&q.t==='K'); });
+    if(!m1.length)return null;
+    const [r1,c1]=rnd(m1);
+    const sim=cloneState(st);
+    applyMoveOn(sim,{fr:r,fc:c,tr:r1,tc:c1,promote:false},o);
+    const m2=pieceMoves(sim,r1,c1);
+    if(!m2.length)return null;
+    const [r2,c2]=rnd(m2);
+    const v1=tgt(r1,c1);
+    const w=st.board[r2][c2]; const v2=(w&&w.o!==o)?w:null;
+    return {kind:'combo',pick,fr:[r,c],mid:[r1,c1],to:[r2,c2],victim:v1,victim2:v2,cap:!!(v1||v2),mvSteps:[{fr:[r,c],to:[r1,c1],fixed:true},{fr:[r1,c1],to:[r2,c2]}],text:`${side}${nm}が二連続で動いた`,apply(ch){
+      applyMoveOn(st,{fr:r,fc:c,tr:r1,tc:c1,promote:false},o);
+      applyMoveOn(st,{fr:r1,fc:c1,tr:r2,tc:c2,promote:ch?ch[1]:undefined},o);
+    }};
+  };
+  const snipe=()=>{
+    const m=[];
+    for(const [dr,dc] of DIRS8){
+      let rr=r+dr,cc=c+dc;
+      for(let s=0;s<5&&inb(rr,cc);s++,rr+=dr,cc+=dc){
+        const q=st.board[rr][cc]; if(!q)continue;
+        if(q.o!==o) m.push([rr,cc,q]); break;
+      }
+    }
+    if(!m.length)return null;
+    const [rr,cc,q]=rnd(m);
+    return {kind:'snipe',pick,fr:[r,c],to:[rr,cc],victim:q,text:`${side}${nm}が遠くの${pname(q)}を狙い撃ちした`,apply(){
+      st.board[rr][cc]=null; st.hands[o][q.t]++; st.last=[[rr,cc]];
+    }};
+  };
+  const adjAlly=pred=>{
+    const m=[];
+    for(const [dr,dc] of DIRS8){ const rr=r+dr,cc=c+dc; if(!inb(rr,cc))continue; const q=st.board[rr][cc]; if(q&&q.o===o&&pred(q)) m.push([rr,cc,q]); }
+    return m;
+  };
+  const bless=()=>{
+    const m=adjAlly(q=>!q.pr&&PROM.has(q.t)); if(!m.length)return null;
+    const [rr,cc,q]=rnd(m);
+    return {kind:'bless',pick,fr:[r,c],tg:{q,at:[rr,cc]},to:[rr,cc],text:`${side}${nm}が${pname(q)}を成らせた`,apply(){ q.pr=true; st.last=[[rr,cc]]; }};
+  };
+  const curse=()=>{
+    const m=[]; for(const [dr,dc] of DIRS8){ const rr=r+dr,cc=c+dc; if(!inb(rr,cc))continue; const q=st.board[rr][cc]; if(q&&q.o!==o&&q.pr&&PROM.has(q.t)) m.push([rr,cc,q]); }
+    if(!m.length)return null;
+    const [rr,cc,q]=rnd(m);
+    return {kind:'curse',pick,fr:[r,c],tg:{q,at:[rr,cc]},to:[rr,cc],text:`${side}${nm}が${pname(q)}を元に戻した`,apply(){ q.pr=false; st.last=[[rr,cc]]; }};
+  };
+  const bomb=()=>{
+    if(p.t==='K')return null;
+    const vs=[];
+    for(const [dr,dc] of DIRS8){ const rr=r+dr,cc=c+dc; if(!inb(rr,cc))continue; const q=st.board[rr][cc]; if(!q)continue; if(q.t==='K'&&q.o===o)continue; vs.push({q,at:[rr,cc]}); }
+    if(!vs.length)return null;
+    return {kind:'bomb',pick,fr:[r,c],victims:vs,text:`${side}${nm}が自爆した`,apply(){
+      for(const v of vs){ st.board[v.at[0]][v.at[1]]=null; st.hands[o][v.q.t]++; }
+      st.board[r][c]=null; st.hands[o][p.t]++;
+      st.last=[[r,c]];
+    }};
+  };
+  const march=()=>{
+    if(p.t==='K')return null;
+    const mates=[];
+    for(let rr=0;rr<9;rr++)for(let cc=0;cc<9;cc++){ const q=st.board[rr][cc]; if(q&&q.o===o&&q.t===p.t&&q.pr===p.pr) mates.push({q,r:rr,c:cc}); }
+    if(mates.length<2)return null;
+    mates.sort((a,b)=>(a.r-b.r)*f*-1);
+    const occ=new Set(); for(let rr=0;rr<9;rr++)for(let cc=0;cc<9;cc++) if(st.board[rr][cc]) occ.add(rr*9+cc);
+    const steps=[];
+    for(const m of mates){
+      const nr=m.r+f; if(!inb(nr,m.c)||occ.has(nr*9+m.c))continue;
+      occ.delete(m.r*9+m.c); occ.add(nr*9+m.c);
+      steps.push({q:m.q,from:[m.r,m.c],to:[nr,m.c]});
+    }
+    if(steps.length<2)return null;
+    return {kind:'march',pick,fr:[r,c],steps,text:`${side}${nm}たちが一斉に行進を始めた`,apply(){
+      for(const s of steps){
+        st.board[s.from[0]][s.from[1]]=null; st.board[s.to[0]][s.to[1]]=s.q;
+        if(!s.q.pr&&PROM.has(s.q.t)&&zone(o,s.to[0])&&mustPro(s.q.t,o,s.to[0])) s.q.pr=true;
+      }
+      st.last=steps.map(s=>s.to);
+    }};
+  };
+  const trade=()=>{
+    const en=[]; for(let rr=0;rr<9;rr++)for(let cc=0;cc<9;cc++){ const q=st.board[rr][cc]; if(q&&q.o!==o) en.push([rr,cc,q]); }
+    if(!en.length)return null; const [rr,cc,q]=rnd(en);
+    return {kind:'trade',pick,other:{q,at:[rr,cc]},text:`${side}${nm}と${pname(q)}が場所を入れ替えた`,apply(){ st.board[r][c]=q; st.board[rr][cc]=p; st.last=[[r,c],[rr,cc]]; }};
+  };
+
+  // 強い動きほど重みを小さく: 弱い(10前後) > 中(2〜5) > 最強(0.3)
+  const acts=[
+    [22,'normal',normal],[8,'advance',advance],[6,'stroll',stroll],[5,'wander',wander],
+    [5,'tohand',toHand],[5,'push',push],[5,'promo',promo],[5,'dash',dash],[5,'recruit',recruit],
+    [4,'swap',swap],[4,'flee',flee],[4,'protect',protect],
+    [3.5,'fight',fight],[3,'bless',bless],[3,'curse',curse],[3,'throw',throwP],[3,'combo',combo],[3,'spin_attack',spinAttack],[3,'warp',warp],
+    [3,'dance',dance],[2.5,'sleep',sleep],[2.5,'stomp',stomp],[2.5,'march',march],
+    [2,'rush',rush],[2,'steal',steal],
+    [1.5,'snipe',snipe],[1.5,'convert',convert],[1.5,'trade',trade],
+    [1.5,'exercise',exercise],[1.5,'bow',bow],[1.5,'spin',spin],[1.5,'duet',duet],
+    [1,'bomb',bomb],[0.15,'assassin',assassin]
+  ];
+  return chooseAct(acts,rng,force)||(force?null:sleep());
+}
+
+// ---- CPU ----
+function allMoves(st,o,dropSample){
+  const res=[];
+  for(let r=0;r<9;r++)for(let c=0;c<9;c++){ const p=st.board[r][c]; if(p&&p.o===o) for(const [rr,cc] of pieceMoves(st,r,c)){
+    if(canPro(p,o,r,rr)){
+      res.push({fr:r,fc:c,tr:rr,tc:cc,promote:true});
+      if(!mustPro(p.t,o,rr)) res.push({fr:r,fc:c,tr:rr,tc:cc,promote:false});
+    } else res.push({fr:r,fc:c,tr:rr,tc:cc});
+  } }
+  const drops=[];
+  for(const t of DROPT) if(st.hands[o][t]>0) for(const [r,c] of dropSquares(st,t,o)) drops.push({drop:true,t,tr:r,tc:c});
+  shuffle(drops); res.push(...drops.slice(0,dropSample));
+  return res;
+}
+function cpuChoose(st,o){
+  const moves=allMoves(st,o,8); if(!moves.length)return null;
+  let best=null,bs=-1e9; const f=o===0?-1:1;
+  for(const mv of moves){
+    const sim=cloneState(st);
+    const p0=mv.drop?null:st.board[mv.fr][mv.fc];
+    const cap=applyMoveOn(sim,mv,o); const gain=cap?val(cap):0;
+    if(gain>=900)return mv;
+    let worst=0;
+    for(let r=0;r<9;r++)for(let c=0;c<9;c++){ const q=sim.board[r][c]; if(q&&q.o!==o){ for(const [rr,cc] of pieceMoves(sim,r,c)){ const t=sim.board[rr][cc]; if(t&&t.o===o) worst=Math.max(worst,val(t)); } } }
+    const adv=mv.drop?0:(mv.tr-mv.fr)*f;
+    const pg=(p0&&mv.promote)?(val({...p0,pr:true})-val(p0)):0;
+    const sc=gain-0.85*worst+adv*0.15+pg*0.5+Math.random()*1.2;
+    if(sc>bs){ bs=sc; best=mv; }
+  }
+  return best;
+}
+// ===== LOGIC END =====
+</script>
+<script>
+// ===== UI3D =====
+(function(){
+const PI=Math.PI;
+const $=s=>document.querySelector(s);
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const fail=m=>{ const e=$('#msg'); if(e){ e.textContent=m; e.style.display='flex'; } };
+if(typeof THREE==='undefined'){ fail('3Dの読み込みに失敗しました'); return; }
+let renderer;
+try{ renderer=new THREE.WebGLRenderer({canvas:$('#c'),antialias:true}); }
+catch(e){ fail('このブラウザでは3Dを表示できません'); return; }
+
+// ---------- 状態 ----------
+let S, sel=null, hints=[], busy=true, over=false, phase='none', selPc=null;
+let ME=0, VIEW=0, SGN=1, MP=null;  // ME: 自分の席(0=先手/下、1=後手) VIEW: 後手は視点を反転
+const faceAng=(x,z)=>Math.atan2(x,z)-VIEW;
+const meshes=new Map();
+const handMeshes=[{},{}];
+for(const o of [0,1]) for(const t of DROPT) handMeshes[o][t]=[];
+const cellX=c=>c-4, cellZ=r=>r-4;
+function traySlot(o,t,j){
+  const i=DROPT.indexOf(t);
+  if(i<0) return {x:0,y:0,z:o===0?8:-8};
+  return {x:-3.9+i*1.3, y:Math.min(j,12)*0.22, z:o===0?5.9:-5.9};
+}
+
+// ---------- シーン ----------
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x1a120c);
+const cam={fov:36,aspect:1,el:58*PI/180,x:0,y:10,z:8,tx:0,ty:0,tz:0.2};
+const camera=new THREE.PerspectiveCamera(cam.fov,1,0.1,120);
+scene.add(new THREE.HemisphereLight(0xfff1d6,0x3b2a1a,0.8));
+const sun=new THREE.DirectionalLight(0xffffff,0.85);
+sun.position.set(-5,14,8); sun.castShadow=true;
+sun.shadow.mapSize.set(1024,1024);
+{ const sc=sun.shadow.camera; sc.left=-9; sc.right=9; sc.top=9; sc.bottom=-9; sc.near=1; sc.far=40; sc.updateProjectionMatrix(); }
+scene.add(sun);
+
+const table=new THREE.Mesh(new THREE.PlaneGeometry(80,80),new THREE.MeshStandardMaterial({color:0x2a1c12,roughness:1}));
+table.rotation.x=-PI/2; table.position.y=-0.5; table.receiveShadow=true; scene.add(table);
+
+function boardTexture(){
+  const N=1024, cv=document.createElement('canvas'); cv.width=cv.height=N;
+  const g=cv.getContext('2d');
+  g.fillStyle='#e2b86f'; g.fillRect(0,0,N,N);
+  for(let i=0;i<150;i++){
+    g.strokeStyle=`rgba(120,80,30,${Math.random()*0.12})`; g.lineWidth=1+Math.random()*3;
+    const y=Math.random()*N; g.beginPath(); g.moveTo(0,y);
+    g.bezierCurveTo(N*.3,y+Math.random()*18-9,N*.7,y+Math.random()*18-9,N,y+Math.random()*12-6); g.stroke();
+  }
+  const cs=N/9; g.strokeStyle='#5a3a1c'; g.lineWidth=4;
+  for(let i=0;i<=9;i++){
+    const p=Math.min(Math.max(i*cs,2),N-2);
+    g.beginPath(); g.moveTo(p,0); g.lineTo(p,N); g.stroke();
+    g.beginPath(); g.moveTo(0,p); g.lineTo(N,p); g.stroke();
+  }
+  g.fillStyle='#3d2610';
+  for(const [a,b] of [[3,3],[3,6],[6,3],[6,6]]){ g.beginPath(); g.arc(a*cs,b*cs,8,0,2*PI); g.fill(); }
+  const t=new THREE.CanvasTexture(cv); t.anisotropy=4; return t;
+}
+const boardBox=new THREE.Mesh(new THREE.BoxGeometry(9.7,0.5,9.7),new THREE.MeshStandardMaterial({color:0xb98a4a,roughness:.8}));
+boardBox.position.y=-0.25; boardBox.receiveShadow=true; scene.add(boardBox);
+const grid=new THREE.Mesh(new THREE.PlaneGeometry(9,9),new THREE.MeshStandardMaterial({map:boardTexture(),roughness:.7}));
+grid.rotation.x=-PI/2; grid.position.y=0.003; grid.receiveShadow=true; scene.add(grid);
+const trayMats=[0,1].map(()=>new THREE.MeshStandardMaterial({color:0x4a3220,roughness:.85,emissive:0xffd77a,emissiveIntensity:0}));
+[0,1].forEach(o=>{
+  const tr=new THREE.Mesh(new THREE.BoxGeometry(9.7,0.3,1.7),trayMats[o]);
+  tr.position.set(0,-0.15,o===0?5.9:-5.9); tr.receiveShadow=true; scene.add(tr);
+});
+
+// ---------- 駒の部品 ----------
+const shp=new THREE.Shape();
+shp.moveTo(0,.45); shp.lineTo(.30,.29); shp.lineTo(.39,-.45); shp.lineTo(-.39,-.45); shp.lineTo(-.30,.29); shp.closePath();
+const PIECE_GEO=new THREE.ExtrudeGeometry(shp,{depth:.18,bevelEnabled:true,bevelThickness:.025,bevelSize:.025,bevelSegments:2});
+const DECAL_GEO=new THREE.PlaneGeometry(.62,.62);
+const SLAB_MAT=new THREE.MeshStandardMaterial({color:0xf0cf8a,roughness:.55});
+const LIMB_MAT=new THREE.MeshStandardMaterial({color:0x7a4a22,roughness:.8});
+const HAND_MAT=new THREE.MeshStandardMaterial({color:0xfff0d0,roughness:.6});
+const FOOT_MAT=new THREE.MeshStandardMaterial({color:0x6b3b1a,roughness:.7});
+const ARM_GEO=new THREE.CylinderGeometry(.075,.075,.4,10); ARM_GEO.translate(0,-.2,0);
+const LEG_GEO=new THREE.CylinderGeometry(.09,.09,.42,10); LEG_GEO.translate(0,-.21,0);
+const HAND_GEO=new THREE.SphereGeometry(.12,12,10);
+const FOOT_GEO=new THREE.SphereGeometry(.13,12,10);
+const decalCache=new Map();
+function decalMat(g,pro){
+  const key=g+(pro?'r':'k'); let m=decalCache.get(key);
+  if(!m){
+    const cv=document.createElement('canvas'); cv.width=cv.height=128;
+    const x=cv.getContext('2d');
+    x.font='900 92px "Hiragino Mincho ProN","Yu Mincho","Noto Serif JP",serif';
+    x.textAlign='center'; x.textBaseline='middle';
+    x.fillStyle=pro?'#c1281b':'#1a1008'; x.fillText(g,64,68);
+    const tex=new THREE.CanvasTexture(cv); tex.anisotropy=4;
+    m=new THREE.MeshLambertMaterial({map:tex,transparent:true}); decalCache.set(key,m);
+  }
+  return m;
+}
+const isPro=(t,pr)=>pr&&t!=='G'&&t!=='K';
+function gl(t,o,pr){ return glyph({t,o,pr}); }
+
+function makePc(t,o,pr){
+  const pc={t,o,pr,x:0,y:0,z:0,yaw:0,phi:0,limb:0,walk:0,amp:0,hop:0,spin:0,emis:0,scale:1,wob:0,thrust:0,jack:0,bow:0,limbs:null};
+  pc.root=new THREE.Group(); pc.body=new THREE.Group(); pc.root.add(pc.body);
+  pc.mat=SLAB_MAT.clone();
+  const slab=new THREE.Mesh(PIECE_GEO,pc.mat); slab.castShadow=true; pc.body.add(slab);
+  pc.decal=new THREE.Mesh(DECAL_GEO,decalMat(gl(t,o,pr),isPro(t,pr)));
+  pc.decal.position.set(0,-0.03,0.208); pc.body.add(pc.decal);
+  scene.add(pc.root);
+  return pc;
+}
+function setGlyph(pc,pr){ pc.pr=pr; pc.decal.material=decalMat(gl(pc.t,pc.o,pr),isPro(pc.t,pr)); }
+function ensureLimbs(pc){
+  if(pc.limbs)return;
+  const L=new THREE.Group(); pc.body.add(L); pc.limbs=L;
+  const mk=(x,y,isArm)=>{
+    const g=new THREE.Group(); g.position.set(x,y,0.09);
+    const cyl=new THREE.Mesh(isArm?ARM_GEO:LEG_GEO,LIMB_MAT); cyl.castShadow=true; g.add(cyl);
+    const end=new THREE.Mesh(isArm?HAND_GEO:FOOT_GEO,isArm?HAND_MAT:FOOT_MAT); end.position.y=isArm?-.4:-.42; end.castShadow=true; g.add(end);
+    L.add(g); return g;
+  };
+  pc.armL=mk(-.47,.16,true); pc.armR=mk(.47,.16,true);
+  pc.legL=mk(-.2,-.42,false); pc.legR=mk(.2,-.42,false);
+  pc.armL.rotation.z=.35; pc.armR.rotation.z=-.35;
+}
+function apply(pc){
+  const ph=pc.phi*PI/2, s=Math.sin(ph);
+  const rest=pc.o===1?PI:0;
+  pc.root.position.set(pc.x,pc.y+pc.hop,pc.z);
+  pc.root.rotation.y=rest*(1-pc.phi)+(pc.yaw+VIEW)*pc.phi+pc.spin;
+  pc.root.scale.set(pc.scale,pc.scale,pc.scale);
+  pc.body.rotation.x=-PI/2+ph+pc.bow*0.9;
+  pc.body.rotation.z=pc.wob;
+  const bob=Math.abs(Math.sin(pc.walk))*0.07*pc.amp*clamp(pc.phi,0,1);
+  pc.body.position.y=0.45*s+0.48*s*s*s+bob;
+  if(pc.limbs){
+    pc.limbs.visible=pc.limb>0.01;
+    pc.limbs.scale.set(1,Math.max(0.001,pc.limb),1);
+    const sw=Math.sin(pc.walk)*pc.amp*0.85;
+    pc.legL.rotation.x=sw; pc.legR.rotation.x=-sw;
+    pc.armL.rotation.x=-sw*0.8-pc.thrust*1.5; pc.armR.rotation.x=sw*0.8-pc.thrust*1.5;
+    pc.armL.rotation.z=-.35-pc.jack*2.2; pc.armR.rotation.z=.35+pc.jack*2.2;
+    pc.legL.rotation.z=-pc.jack*.5; pc.legR.rotation.z=pc.jack*.5;
+  }
+  pc.mat.emissive.setHex(0xffd77a);
+  pc.mat.emissiveIntensity=pc.emis;
+}
+function restPose(pc,x,y,z){
+  pc.x=x; pc.y=y; pc.z=z; pc.yaw=0; pc.phi=0; pc.limb=0; pc.walk=0; pc.amp=0;
+  pc.hop=0; pc.spin=0; pc.emis=0; pc.scale=1; pc.wob=0; pc.thrust=0; pc.jack=0; pc.bow=0;
+  apply(pc);
+}
+function removePc(pc){ scene.remove(pc.root); }
+
+// ---------- 同期(状態→見た目。アニメなし) ----------
+function sync(){
+  const live=new Set();
+  for(let r=0;r<9;r++)for(let c=0;c<9;c++){
+    const p=S.board[r][c]; if(!p)continue; live.add(p.id);
+    let pc=meshes.get(p.id);
+    if(!pc){ pc=makePc(p.t,p.o,p.pr); meshes.set(p.id,pc); }
+    if(pc.o!==p.o){ pc.o=p.o; setGlyph(pc,p.pr); }
+    const changed=pc.pr!==p.pr;
+    if(changed) setGlyph(pc,p.pr);
+    restPose(pc,cellX(c),0,cellZ(r));
+    if(changed) pop(pc);
+  }
+  for(const [id,pc] of [...meshes]) if(!live.has(id)){ removePc(pc); meshes.delete(id); }
+  for(const o of [0,1]) for(const t of DROPT){
+    const arr=handMeshes[o][t], n=S.hands[o][t];
+    while(arr.length>n) removePc(arr.pop());
+    while(arr.length<n) arr.push(makePc(t,o,false));
+    arr.forEach((pc,j)=>{ const s=traySlot(o,t,j); restPose(pc,s.x,s.y,s.z); });
+  }
+}
+
+// ---------- アニメーション ----------
+const tweens=[];
+const lin=t=>t, sm=t=>t*t*(3-2*t);
+const outBack=t=>{ const c1=1.1,c3=c1+1; return 1+c3*Math.pow(t-1,3)+c1*Math.pow(t-1,2); };
+function tween(dur,fn,ease=sm){ return new Promise(res=>{ tweens.push({dur:dur*1000,fn,ease,res,t0:null}); }); }
+function stepTweens(now){
+  for(let i=tweens.length-1;i>=0;i--){
+    const tw=tweens[i]; if(!tw) continue;
+    if(tw.t0===null) tw.t0=now;
+    const k=clamp((now-tw.t0)/tw.dur,0,1);
+    try{ tw.fn(tw.ease(k),k); }catch(e){ console.error(e); }
+    if(k>=1){ const j=tweens.indexOf(tw); if(j>=0) tweens.splice(j,1); tw.res(); }
+  }
+}
+function pop(pc){ tween(.35,(e,k)=>{ pc.scale=1+0.35*Math.sin(PI*k); apply(pc); },lin).then(()=>{ pc.scale=1; apply(pc); }); }
+
+async function anticipate(pc){
+  await tween(.5,(e,k)=>{ pc.wob=Math.sin(k*46)*0.3*k; pc.emis=0.7*Math.abs(Math.sin(k*16)); apply(pc); },lin);
+  pc.wob=0; pc.emis=0; apply(pc);
+}
+async function standUp(pc){
+  await tween(.5,(e,k)=>{
+    pc.phi=e; pc.limb=clamp((k-.35)/.65,0,1);
+    if(pc.limb>0) ensureLimbs(pc);
+    apply(pc);
+  },outBack);
+  pc.phi=1; pc.limb=1; ensureLimbs(pc); apply(pc);
+}
+async function layDown(pc,toY=0){
+  const y0=pc.y;
+  await tween(.45,(e,k)=>{
+    pc.limb=Math.max(0,1-k*2.2); pc.phi=1-e; pc.y=y0+(toY-y0)*e;
+    pc.amp*=0.9; pc.thrust*=0.8; pc.yaw*=0.85; apply(pc);
+  });
+  pc.limb=0; pc.phi=0; pc.y=toY; pc.walk=0; pc.amp=0; pc.yaw=0; pc.thrust=0; apply(pc);
+}
+async function walkTo(pc,tx,tz,o={}){
+  const speed=o.speed||3.2, jump=o.jump||0, side=o.side||0, amp=o.amp||1;
+  const x0=pc.x,z0=pc.z,dx=tx-x0,dz=tz-z0,dist=Math.hypot(dx,dz);
+  if(dist<1e-3) return;
+  const dur=Math.max(.4,dist/speed), nx=-dz/dist, nz=dx/dist, ph0=pc.walk;
+  await tween(dur,(e,k)=>{
+    const sd=side*Math.sin(PI*e);
+    pc.x=x0+dx*e+nx*sd; pc.z=z0+dz*e+nz*sd;
+    pc.walk=ph0+k*dur*10; pc.amp=amp*Math.min(1,Math.sin(PI*k)*2.5+0.25);
+    pc.yaw=clamp(dx/dist*0.8,-.7,.7)*SGN; pc.hop=Math.sin(PI*e)*jump;
+    apply(pc);
+  });
+  pc.x=tx; pc.z=tz; pc.hop=0; pc.amp=0; pc.walk=0; apply(pc);
+}
+async function fly(pc,tx,ty,tz,dur=.55,h=1.2,spin=0){
+  const x0=pc.x,y0=pc.y,z0=pc.z;
+  await tween(dur,e=>{
+    pc.x=x0+(tx-x0)*e; pc.y=y0+(ty-y0)*e; pc.z=z0+(tz-z0)*e;
+    pc.hop=Math.sin(PI*e)*h; pc.spin=spin*e; apply(pc);
+  });
+  pc.x=tx; pc.y=ty; pc.z=tz; pc.hop=0; pc.spin=0; apply(pc);
+}
+// 取られた駒は、取った側の駒台へ飛んでいく
+function knock(vic,o,extra=0){
+  setGlyph(vic,false);
+  const s=traySlot(o,vic.t,(S.hands[o][vic.t]||0)+extra);
+  return fly(vic,s.x,s.y,s.z,.75,2.2,PI*2);
+}
+const ZTEX=(()=>{ const cv=document.createElement('canvas'); cv.width=cv.height=64; const g=cv.getContext('2d');
+  g.font='900 52px sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillStyle='#ffd77a'; g.fillText('Z',32,36);
+  return new THREE.CanvasTexture(cv); })();
+function zzz(x,z){
+  for(let i=0;i<3;i++){
+    const m=new THREE.SpriteMaterial({map:ZTEX,transparent:true,opacity:0});
+    const sp=new THREE.Sprite(m); scene.add(sp);
+    (async()=>{
+      await wait(i*450);
+      await tween(1.3,(e,k)=>{
+        sp.position.set(x+0.25*i+0.15*Math.sin(k*6),0.6+e*1.6,z-0.1);
+        const sc=0.35+0.15*i; sp.scale.set(sc,sc,1); m.opacity=Math.sin(PI*k);
+      },lin);
+      scene.remove(sp);
+    })();
+  }
+}
+async function drowse(pc){
+  zzz(pc.x,pc.z);
+  await tween(.5,e=>{ pc.phi=.5*e; apply(pc); });
+  await tween(1.0,(e,k)=>{ pc.phi=.5+.07*Math.sin(k*12)*(1-k*.5); apply(pc); },lin);
+  await tween(.5,e=>{ pc.phi=.5*(1-e); apply(pc); });
+  pc.phi=0; apply(pc);
+}
+async function dance(pc){
+  let flipped=false;
+  await tween(1.0,(e,k)=>{
+    pc.spin=2*PI*e; pc.hop=Math.abs(Math.sin(k*PI*2))*0.35;
+    pc.walk=k*30; pc.amp=0.9; pc.emis=0.5*Math.abs(Math.sin(k*18));
+    if(!flipped&&k>.5){ flipped=true; setGlyph(pc,!pc.pr); }
+    apply(pc);
+  },lin);
+  pc.spin=0; pc.hop=0; pc.amp=0; pc.walk=0; pc.emis=0; apply(pc);
+}
+
+// ---------- 通常の手(手で動かす) ----------
+async function moveVisual(mv,o){
+  if(mv.drop){
+    const a=handMeshes[o][mv.t], pc=a[a.length-1]; if(!pc)return;
+    await fly(pc,cellX(mv.tc),0,cellZ(mv.tr),.55,1.1);
+    return;
+  }
+  const p=S.board[mv.fr][mv.fc], pc=meshes.get(p.id); if(!pc)return;
+  const vp=S.board[mv.tr][mv.tc], vic=vp?meshes.get(vp.id):null;
+  const f=fly(pc,cellX(mv.tc),0,cellZ(mv.tr),.5,.9);
+  if(vic){ await wait(300); knock(vic,o); }
+  await f;
+}
+
+// ---------- 暴走 ----------
+const cellOf=rc=>({x:cellX(rc[1]),z:cellZ(rc[0])});
+function reset(...ms){
+  for(const m of ms){ if(!m)continue; m.spin=0; m.hop=0; m.amp=0; m.walk=0; m.emis=0; m.jack=0; m.bow=0; m.thrust=0; m.wob=0; m.scale=1; apply(m); }
+}
+async function walkLike(pc,plan,o,opt){
+  const d=cellOf(plan.to), vic=plan.victim?meshes.get(plan.victim.id):null;
+  await standUp(pc);
+  await walkTo(pc,d.x,d.z,opt);
+  const jobs=[layDown(pc,0)]; if(vic) jobs.push(knock(vic,o));
+  await Promise.all(jobs);
+}
+async function perform(pc,name){
+  const y0=pc.y;
+  await standUp(pc);
+  if(name==='dance'){
+    await tween(1.7,(e,k)=>{ pc.walk=k*42; pc.amp=.9; pc.hop=Math.abs(Math.sin(k*PI*5))*.3; pc.yaw=Math.sin(k*PI*4)*.7; pc.jack=Math.sin(k*PI*10)>0?.7:0; apply(pc); },lin);
+  } else if(name==='exercise'){
+    await tween(1.6,(e,k)=>{ const j=Math.abs(Math.sin(k*PI*6)); pc.jack=j; pc.hop=j*.3; apply(pc); },lin);
+  } else if(name==='bow'){
+    await tween(.5,e=>{ pc.bow=e; apply(pc); });
+    await wait(350);
+    await tween(.45,e=>{ pc.bow=1-e; apply(pc); });
+  } else if(name==='spin'){
+    await tween(1.4,e=>{ pc.spin=PI*6*e; pc.jack=1; pc.hop=Math.sin(PI*e)*.35; pc.walk=e*40; pc.amp=.8; apply(pc); });
+  }
+  reset(pc);
+  await layDown(pc,y0);
+}
+const V={
+  normal:(pc,pl,o)=>walkLike(pc,pl,o,{jump:pc.t==='N'?.7:0}),
+  stroll:(pc,pl,o)=>walkLike(pc,pl,o,{}),
+  wander:(pc,pl,o)=>walkLike(pc,pl,o,{speed:3.6}),
+  dash:(pc,pl,o)=>walkLike(pc,pl,o,{speed:7,amp:1.4}),
+  flee:(pc,pl,o)=>walkLike(pc,pl,o,{speed:5.5,amp:1.4}),
+  protect:(pc,pl,o)=>walkLike(pc,pl,o,{speed:3.6}),
+  rush:(pc,pl,o)=>walkLike(pc,pl,o,{speed:5,amp:1.4}),
+  stomp:(pc,pl,o)=>walkLike(pc,pl,o,{speed:3.4,jump:1.7,amp:.8}),
+  assassin:(pc,pl,o)=>walkLike(pc,pl,o,{speed:5,amp:1.5,jump:.35}),
+  sleep:async pc=>{ await drowse(pc); },
+  dance:pc=>perform(pc,'dance'),
+  exercise:pc=>perform(pc,'exercise'),
+  bow:pc=>perform(pc,'bow'),
+  spin:pc=>perform(pc,'spin'),
+  promo:async pc=>{ await standUp(pc); await dance(pc); await layDown(pc,0); },
+  return:async(pc,pl)=>{
+    const d=cellOf(pl.to);
+    await standUp(pc); await walkTo(pc,d.x,d.z,{speed:4,jump:.45}); await layDown(pc,0);
+  },
+  tohand:async(pc,pl,o)=>{
+    const t=pl.pick.p.t, s=traySlot(o,t,S.hands[o][t]);
+    await standUp(pc); await walkTo(pc,s.x,s.z,{speed:4}); await layDown(pc,s.y);
+  },
+  push:async(pc,pl)=>{
+    const nb=pl.nb, npc=meshes.get(nb.q.id), a=cellOf(nb.from), b=cellOf(nb.to);
+    const ox=pc.x, oz=pc.z, dx=a.x-ox, dz=a.z-oz, fy=faceAng(dx,dz);
+    await standUp(pc);
+    await tween(.3,e=>{ pc.yaw=fy*e; apply(pc); });
+    const jobs=[tween(.4,e=>{ pc.thrust=e; pc.x=ox+dx*0.3*e; pc.z=oz+dz*0.3*e; apply(pc); })];
+    if(npc) jobs.push((async()=>{ await wait(120); await fly(npc,b.x,0,b.z,.5,.3); })());
+    await Promise.all(jobs);
+    await tween(.3,e=>{ pc.thrust=1-e; pc.yaw=fy*(1-e); pc.x=ox+dx*0.3*(1-e); pc.z=oz+dz*0.3*(1-e); apply(pc); });
+    await layDown(pc,0);
+  },
+  swap:async(pc,pl)=>{
+    const opc=meshes.get(pl.other.q.id), B=cellOf(pl.other.at), A={x:pc.x,z:pc.z};
+    await Promise.all([standUp(pc),opc?standUp(opc):0]);
+    await Promise.all([walkTo(pc,B.x,B.z,{side:.7,speed:2.6}),opc?walkTo(opc,A.x,A.z,{side:.7,speed:2.6}):0]);
+    await Promise.all([layDown(pc,0),opc?layDown(opc,0):0]);
+  },
+  duet:async(pc,pl)=>{
+    const op=meshes.get(pl.other.q.id), y0=pc.y, oy=op?op.y:0;
+    await Promise.all([standUp(pc),op?standUp(op):0]);
+    await tween(1.7,(e,k)=>{
+      [[pc,0],[op,1]].forEach(([m,ph])=>{
+        if(!m)return;
+        m.walk=k*42+ph*PI; m.amp=.9; m.hop=Math.abs(Math.sin(k*PI*5+ph*PI/2))*.3;
+        m.yaw=Math.sin(k*PI*4+ph*PI)*.7; m.jack=Math.sin(k*PI*10+ph*PI)>0?.7:0; apply(m);
+      });
+    },lin);
+    reset(pc,op);
+    await Promise.all([layDown(pc,y0),op?layDown(op,oy):0]);
+  },
+  warp:async(pc,pl)=>{
+    const d=cellOf(pl.to);
+    await standUp(pc);
+    await tween(.45,e=>{ pc.scale=Math.max(.001,1-e); pc.spin=PI*4*e; apply(pc); });
+    pc.x=d.x; pc.z=d.z; apply(pc);
+    await tween(.45,e=>{ pc.scale=Math.max(.001,e); pc.spin=PI*4*(1-e); apply(pc); });
+    reset(pc);
+    await layDown(pc,0);
+  },
+  convert:async pc=>{
+    await standUp(pc);
+    let flipped=false;
+    await tween(1.3,(e,k)=>{
+      pc.spin=PI*4*e; pc.hop=Math.abs(Math.sin(k*PI*3))*.4; pc.walk=k*30; pc.amp=.8; pc.emis=.7*Math.abs(Math.sin(k*20));
+      if(!flipped&&k>.5){ flipped=true; pc.o=1-pc.o; }
+      apply(pc);
+    },lin);
+    reset(pc);
+    await layDown(pc,0);
+  },
+  spin_attack:async(pc,pl,o)=>{
+    const vs=pl.victims.map(v=>meshes.get(v.q.id)).filter(Boolean);
+    await standUp(pc);
+    const cnt={};
+    const jobs=[tween(1.2,(e,k)=>{ pc.spin=PI*6*e; pc.jack=1; pc.walk=k*50; pc.amp=1; pc.emis=.6*Math.abs(Math.sin(k*24)); apply(pc); },lin)];
+    vs.forEach((vm,i)=>{
+      const ex=cnt[vm.t]||0; cnt[vm.t]=ex+1;
+      jobs.push((async()=>{ await wait(450+i*90); await knock(vm,o,ex); })());
+    });
+    await Promise.all(jobs);
+    reset(pc);
+    await layDown(pc,0);
+  },
+  fight:async(pc,pl,o)=>{
+    const foe=meshes.get(pl.foe.q.id), a={x:pc.x,z:pc.z}, b=cellOf(pl.foe.at);
+    await Promise.all([standUp(pc),foe?standUp(foe):0]);
+    const fy=faceAng(b.x-a.x,b.z-a.z);
+    await tween(.3,e=>{ pc.yaw=fy*e; apply(pc); if(foe){ foe.yaw=(fy+PI)*e; apply(foe); } });
+    for(let i=0;i<4;i++){
+      await tween(.26,(e,k)=>{ const t=Math.sin(PI*k), m=i%2===0?pc:foe; if(m){ m.thrust=t; m.hop=t*.15; apply(m); } },lin);
+      reset(pc,foe);
+    }
+    const winner=pl.win?pc:foe, loser=pl.win?foe:pc, wo=pl.win?o:1-o;
+    const jobs=[];
+    if(loser) jobs.push(knock(loser,wo));
+    if(winner) jobs.push(tween(.6,(e,k)=>{ winner.hop=Math.sin(PI*k)*.5; winner.jack=1; apply(winner); },lin));
+    await Promise.all(jobs);
+    if(winner){ reset(winner); await layDown(winner,0); }
+  },
+  steal:async(pc,pl,o)=>{
+    const t=pl.t, arr=handMeshes[1-o][t], hm=arr[arr.length-1];
+    if(!hm) return;
+    const es=traySlot(1-o,t,arr.length-1), ms=traySlot(o,t,S.hands[o][t]), home={x:pc.x,z:pc.z};
+    await standUp(pc);
+    await walkTo(pc,es.x,es.z,{speed:4});
+    await Promise.all([fly(hm,ms.x,ms.y,ms.z,.9,2.2,PI*2),walkTo(pc,home.x,home.z,{speed:4})]);
+    await layDown(pc,0);
+  },
+  advance:(pc,pl,o)=>walkLike(pc,pl,o,{speed:3.6}),
+  ambush:(pc,pl,o)=>walkLike(pc,pl,o,{speed:5,amp:1.3,jump:.3}),
+  trade:async(pc,pl)=>{
+    const opc=meshes.get(pl.other.q.id), B=cellOf(pl.other.at), A={x:pc.x,z:pc.z};
+    await Promise.all([standUp(pc),opc?standUp(opc):0]);
+    await Promise.all([walkTo(pc,B.x,B.z,{side:.9,speed:4.2,jump:.3}),opc?walkTo(opc,A.x,A.z,{side:.9,speed:4.2,jump:.3}):0]);
+    await Promise.all([layDown(pc,0),opc?layDown(opc,0):0]);
+  },
+  recruit:async(pc,pl,o)=>{
+    const arr=handMeshes[o][pl.t], hm=arr[arr.length-1], d=cellOf(pl.to);
+    await standUp(pc);
+    const wave=tween(1.2,(e,k)=>{ pc.jack=Math.sin(k*PI*8)>0?.9:.1; pc.hop=Math.abs(Math.sin(k*PI*4))*.15; apply(pc); },lin);
+    const call=(async()=>{ await wait(350); if(hm) await fly(hm,d.x,0,d.z,.8,1.6,PI*2); })();
+    await Promise.all([wave,call]);
+    reset(pc);
+    await layDown(pc,0);
+  },
+  throw:async(pc,pl)=>{
+    const nb=pl.nb, npc=meshes.get(nb.q.id), a=cellOf(nb.from), b=cellOf(nb.to);
+    const ox=pc.x, oz=pc.z, fy=faceAng(a.x-ox,a.z-oz);
+    await standUp(pc);
+    await tween(.3,e=>{ pc.yaw=fy*e; apply(pc); });
+    await tween(.35,e=>{ pc.jack=e; pc.bow=-0.3*e; apply(pc); });
+    const jobs=[];
+    if(npc) jobs.push((async()=>{ await fly(npc,b.x,0,b.z,.9,3,PI*4); })());
+    jobs.push(tween(.5,(e,k)=>{ pc.jack=1-e; pc.thrust=Math.sin(PI*k); apply(pc); }));
+    await Promise.all(jobs);
+    reset(pc); pc.yaw=0; apply(pc);
+    await layDown(pc,0);
+  },
+  combo:async(pc,pl,o)=>{
+    const m=cellOf(pl.mid), d=cellOf(pl.to);
+    const v1=pl.victim?meshes.get(pl.victim.id):null, v2=pl.victim2?meshes.get(pl.victim2.id):null;
+    await standUp(pc);
+    await walkTo(pc,m.x,m.z,{speed:5,amp:1.3,jump:.3});
+    if(v1) knock(v1,o);
+    await tween(.2,(e,k)=>{ pc.jack=Math.sin(PI*k); apply(pc); },lin);
+    await walkTo(pc,d.x,d.z,{speed:5,amp:1.3,jump:.3});
+    const jobs=[layDown(pc,0)]; if(v2) jobs.push(knock(v2,o,v1&&v1.t===v2.t?1:0));
+    await Promise.all(jobs);
+  },
+  snipe:async(pc,pl,o)=>{
+    const vm=meshes.get(pl.victim.id), b=cellOf(pl.to);
+    const fy=faceAng(b.x-pc.x,b.z-pc.z);
+    await standUp(pc);
+    await tween(.35,e=>{ pc.yaw=fy*e; apply(pc); });
+    await tween(.5,(e,k)=>{ pc.thrust=e; pc.emis=.8*Math.abs(Math.sin(k*14)); apply(pc); },lin);
+    const ball=new THREE.Mesh(new THREE.SphereGeometry(.13,10,8),new THREE.MeshBasicMaterial({color:0xffe066}));
+    scene.add(ball);
+    const x0=pc.x,z0=pc.z;
+    await tween(.4,e=>{ ball.position.set(x0+(b.x-x0)*e,.55,z0+(b.z-z0)*e); },lin);
+    scene.remove(ball);
+    const jobs=[]; if(vm) jobs.push(knock(vm,o));
+    jobs.push(tween(.4,e=>{ pc.thrust=1-e; pc.emis=0; apply(pc); }));
+    await Promise.all(jobs);
+    reset(pc); pc.yaw=0; apply(pc);
+    await layDown(pc,0);
+  },
+  bless:async(pc,pl)=>{
+    const tm=meshes.get(pl.tg.q.id), b=cellOf(pl.tg.at);
+    const fy=faceAng(b.x-pc.x,b.z-pc.z);
+    await standUp(pc);
+    await tween(.3,e=>{ pc.yaw=fy*e; apply(pc); });
+    await tween(1.0,(e,k)=>{ pc.jack=.8; pc.thrust=Math.sin(PI*k)*.6; pc.emis=.6*Math.abs(Math.sin(k*16)); if(tm){ tm.emis=.8*Math.abs(Math.sin(k*20)); tm.hop=Math.sin(PI*k)*.3; apply(tm); } apply(pc); },lin);
+    if(tm){ tm.emis=0; tm.hop=0; apply(tm); }
+    reset(pc); pc.yaw=0; apply(pc);
+    await layDown(pc,0);
+  },
+  bomb:async(pc,pl,o)=>{
+    const vs=pl.victims.map(v=>meshes.get(v.q.id)).filter(Boolean);
+    await standUp(pc);
+    await tween(1.0,(e,k)=>{ pc.scale=1+.8*e; pc.emis=.4+.6*Math.abs(Math.sin(k*30)); pc.wob=Math.sin(k*60)*.15; apply(pc); },lin);
+    pc.scale=1; pc.emis=0; pc.wob=0; apply(pc);
+    const cnt={}, jobs=[];
+    [...vs,pc].forEach(m=>{ const ex=cnt[m.t]||0; cnt[m.t]=ex+1; jobs.push(knock(m,o,ex)); });
+    await Promise.all(jobs);
+  },
+  march:async(pc,pl)=>{
+    const items=pl.steps.map(s=>({m:meshes.get(s.q.id),to:cellOf(s.to)})).filter(x=>x.m);
+    await Promise.all(items.map(x=>standUp(x.m)));
+    await Promise.all(items.map((x,i)=>(async()=>{ await wait(i*100); await walkTo(x.m,x.to.x,x.to.z,{speed:2.6}); })()));
+    await Promise.all(items.map(x=>layDown(x.m,0)));
+  }
+};
+V.curse=V.bless;
+async function rampageVisual(plan,o){
+  const pk=plan.pick;
+  let pc;
+  if(pk.kind==='b') pc=meshes.get(pk.p.id);
+  else { const a=handMeshes[o][pk.t]; pc=a[a.length-1]; }
+  if(!pc) return;
+  await anticipate(pc);
+  const fn=V[plan.kind];
+  if(fn) await fn(pc,plan,o);
+}
+
+// ---------- 印・選択 ----------
+const circPool=[], ringPool=[], lastPool=[];
+function pooled(pool,i,make){
+  if(!pool[i]){ pool[i]=make(); scene.add(pool[i]); }
+  return pool[i];
+}
+const circGeo=new THREE.CircleGeometry(.14,20), circMat=new THREE.MeshBasicMaterial({color:0x1f8a47});
+const ringGeo=new THREE.RingGeometry(.38,.46,28), ringMat=new THREE.MeshBasicMaterial({color:0xd03a2a});
+const lastGeo=new THREE.PlaneGeometry(.96,.96), lastMat=new THREE.MeshBasicMaterial({color:0xffe380,transparent:true,opacity:.4});
+const mkFlat=(g,m,y)=>()=>{ const x=new THREE.Mesh(g,m); x.rotation.x=-PI/2; x.position.y=y; return x; };
+function renderMarks(){
+  [circPool,ringPool,lastPool].forEach(pl=>pl.forEach(m=>{ if(m) m.visible=false; }));
+  let ci=0,ri=0,li=0;
+  for(const h of hints){
+    if(S.board[h.r][h.c]){ const m=pooled(ringPool,ri++,mkFlat(ringGeo,ringMat,0.02)); m.visible=true; m.position.set(cellX(h.c),0.02,cellZ(h.r)); }
+    else { const m=pooled(circPool,ci++,mkFlat(circGeo,circMat,0.02)); m.visible=true; m.position.set(cellX(h.c),0.02,cellZ(h.r)); }
+  }
+  for(const [r,c] of S.last||[]){ const m=pooled(lastPool,li++,mkFlat(lastGeo,lastMat,0.012)); m.visible=true; m.position.set(cellX(c),0.012,cellZ(r)); }
+  if(selPc){ selPc.emis=0; selPc.y=0; apply(selPc); selPc=null; }
+  if(sel){
+    let pc=null;
+    if(sel.k==='b'){ const p=S.board[sel.r][sel.c]; pc=p&&meshes.get(p.id); }
+    else { const a=handMeshes[ME][sel.t]; pc=a[a.length-1]; }
+    if(pc){ selPc=pc; pc.emis=0.4; pc.y+= 0; apply(pc); }
+  }
+}
+function setTurn(i){
+  trayMats[0].emissiveIntensity=i===0?0.3:0; trayMats[1].emissiveIntensity=i===1?0.3:0;
+  const t=$('#turn'), mine=i===ME, show=mine||(!!MP&&i>=0);
+  t.textContent=mine?'あなたの番':'相手の番';
+  t.classList.toggle('on',show); t.classList.toggle('opp',show&&!mine); t.classList.toggle('warn',mine&&inCheck(S,ME));
+}
+let checkKey='';
+function checkFlash(){
+  const k=(inCheck(S,0)?'0':'')+(inCheck(S,1)?'1':'');
+  const fresh=k&&k!==checkKey; checkKey=k;
+  if(!fresh)return;
+  const e=$('#ote'); e.classList.remove('go'); void e.offsetWidth; e.classList.add('go');
+}
+function clearSel(){ sel=null; hints=[]; renderMarks(); }
+
+// ---------- 入力(自前のレイ計算) ----------
+const v={
+  sub:(a,b)=>[a[0]-b[0],a[1]-b[1],a[2]-b[2]], add:(a,b)=>[a[0]+b[0],a[1]+b[1],a[2]+b[2]],
+  mul:(a,k)=>[a[0]*k,a[1]*k,a[2]*k], dot:(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2],
+  cross:(a,b)=>[a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]],
+  norm:a=>{ const l=Math.hypot(a[0],a[1],a[2])||1; return [a[0]/l,a[1]/l,a[2]/l]; }
+};
+function basis(){
+  const P=[cam.x,cam.y,cam.z], T=[cam.tx,cam.ty,cam.tz];
+  const f=v.norm(v.sub(T,P)), r=v.norm(v.cross(f,[0,1,0])), u=v.cross(r,f);
+  return {P,f,r,u,th:Math.tan(cam.fov*PI/360)};
+}
+function rayPlane(nx,ny,h){
+  const {P,f,r,u,th}=basis();
+  const d=v.norm(v.add(v.add(f,v.mul(r,nx*th*cam.aspect)),v.mul(u,ny*th)));
+  if(Math.abs(d[1])<1e-6) return null;
+  const t=(h-P[1])/d[1]; if(t<0) return null;
+  return {x:P[0]+d[0]*t,z:P[2]+d[2]*t};
+}
+function project(x,y,z){
+  const {P,f,r,u,th}=basis(); const q=v.sub([x,y,z],P);
+  const zc=v.dot(q,f); return {nx:v.dot(q,r)/(zc*th*cam.aspect),ny:v.dot(q,u)/(zc*th)};
+}
+function onCell(r,c){
+  if(busy||over||phase!=='player')return;
+  if(sel){ const h=hints.find(h=>h.r===r&&h.c===c); if(h){ playerAct(h); return; } }
+  const p=S.board[r][c];
+  if(p&&p.o===ME&&!(sel&&sel.k==='b'&&sel.r===r&&sel.c===c)){
+    sel={k:'b',r,c}; hints=pieceMoves(S,r,c).map(([rr,cc])=>({r:rr,c:cc})); renderMarks();
+  } else clearSel();
+}
+function onChip(t){
+  if(busy||over||phase!=='player')return;
+  if(sel&&sel.k==='d'&&sel.t===t){ clearSel(); return; }
+  sel={k:'d',t}; hints=dropSquares(S,t,ME).map(([r,c])=>({r,c})); renderMarks();
+}
+$('#c').addEventListener('click',e=>{
+  if(busy||over||phase!=='player')return;
+  const rc=e.target.getBoundingClientRect();
+  const nx=((e.clientX-rc.left)/rc.width)*2-1, ny=-(((e.clientY-rc.top)/rc.height)*2-1);
+  const p=rayPlane(nx,ny,0.12); if(!p)return;
+  if(Math.abs(p.z-(ME===0?5.9:-5.9))<1.0){
+    const i=Math.round((p.x+3.9)/1.3);
+    if(i>=0&&i<7&&Math.abs(p.x-(-3.9+i*1.3))<.65){ const t=DROPT[i]; if(S.hands[ME][t]>0) onChip(t); return; }
+    clearSel(); return;
+  }
+  const c=Math.floor(p.x+4.5), r=Math.floor(p.z+4.5);
+  if(inb(r,c)) onCell(r,c); else clearSel();
+});
+
+// ---------- 進行 ----------
+let overMode='game';
+function setOver(text,mode){
+  overMode=mode||'game';
+  const t=$('#overText'); t.textContent=text; t.classList.toggle('small',overMode!=='game');
+  $('#again').textContent=overMode==='lost'?'もどる':'もう一局';
+}
+function endCheck(){
+  const w=winner(S); if(w<0)return false;
+  over=true; busy=true; setTurn(-1); phase='none';
+  setOver(w===ME?'勝ち':'負け');
+  setTimeout(()=>$('#over').classList.add('on'),900);
+  return true;
+}
+function askPromote(p){
+  return new Promise(res=>{
+    const box=$('#promo'), no=$('#pno'), yes=$('#pyes');
+    no.textContent=KANJI[p.t][0]; yes.textContent=KANJI[p.t][1];
+    box.classList.add('on');
+    const done=v=>{ box.classList.remove('on'); no.onclick=null; yes.onclick=null; res(v); };
+    no.onclick=()=>done(false); yes.onclick=()=>done(true);
+  });
+}
+// 暴走で敵陣に入ったときの成り: 自分の駒は選ぶ。相手の駒は、CPU戦では成る/対戦では相手が選ぶ
+async function choosePromos(plan,o){
+  const idx=promoChoices(plan,o); if(!idx.length)return undefined;
+  const p=plan.pick.p, ch=[];
+  if(MP&&o!==ME){
+    const m=await nextMsg();
+    if(m.t!=='promo'||!Array.isArray(m.d.ch)) throw new Error('desync:promo');
+    idx.forEach((i,j)=>{ ch[i]=m.d.ch[j]===true; });
+    return ch;
+  }
+  const picked=[];
+  for(const i of idx){
+    if(picked[0]===true)break;
+    const v=o===ME?await askPromote(p):true;
+    ch[i]=v; picked.push(v);
+  }
+  if(MP) MP.net.send('promo',{ch:idx.map(i=>ch[i]===true)});
+  return ch;
+}
+async function rampage(o){
+  const plan=planRampage(S,o); if(!plan)return;
+  setTurn(-1);
+  try{ await rampageVisual(plan,o); }catch(e){ console.error(e); }
+  plan.apply(await choosePromos(plan,o)); sync(); renderMarks(); checkFlash();
+  await wait(300);
+}
+async function doMove(mv,o){
+  if(mv.drop) mv.id=nid();
+  try{ await moveVisual(mv,o); }catch(e){ console.error(e); }
+  applyMoveOn(S,mv,o); sync(); renderMarks(); checkFlash();
+}
+async function playerAct(h){
+  busy=true; phase='none';
+  const mv=sel.k==='b'?{fr:sel.r,fc:sel.c,tr:h.r,tc:h.c}:{drop:true,t:sel.t,tr:h.r,tc:h.c,id:nid()};
+  let pp=null; if(sel.k==='b'){ const q=S.board[sel.r][sel.c]; if(canPro(q,ME,sel.r,h.r)) pp=q; }
+  sel=null; hints=[]; renderMarks(); setTurn(-1);
+  if(pp) mv.promote=mustPro(pp.t,ME,h.r)?true:await askPromote(pp);
+  if(MP){ const m=legalMove(mv,ME); MP.net.send('move',{mv:m,h:stateHash(S)}); MP.localMove(m); return; }
+  try{ await moveVisual(mv,0); }catch(e){ console.error(e); }
+  applyMoveOn(S,mv,0); sync(); renderMarks(); checkFlash();
+  if(endCheck())return;
+  await wait(350); await rampage(0); if(endCheck())return;
+  setTurn(1); await wait(600);
+  const cm=cpuChoose(S,1);
+  if(cm){
+    if(cm.drop) cm.id=nid();
+    try{ await moveVisual(cm,1); }catch(e){ console.error(e); }
+    applyMoveOn(S,cm,1); sync(); renderMarks(); checkFlash();
+  }
+  if(endCheck())return;
+  await wait(350); await rampage(1); if(endCheck())return;
+  setTurn(0); phase='player'; busy=false;
+}
+function resetBoard(){
+  for(const pc of meshes.values()) removePc(pc); meshes.clear();
+  for(const o of [0,1]) for(const t of DROPT){ handMeshes[o][t].forEach(removePc); handMeshes[o][t].length=0; }
+  S=newState(); checkKey=''; over=false; sel=null; hints=[]; $('#over').classList.remove('on'); $('#promo').classList.remove('on');
+  setOver('');
+  sync(); renderMarks();
+}
+function start(){
+  setSeat(0); setRng(null);
+  resetBoard(); setTurn(0); phase='player'; busy=false;
+}
+
+// ---------- 対戦(オンライン) ----------
+// 両者が同じ種の乱数で同じ暴走を計算し、操作(手・成りの選択)だけを送り合う。
+function setSeat(me){
+  ME=me; VIEW=me===1?PI:0; SGN=me===1?-1:1;
+  layout();
+}
+function legalMove(mv,o){
+  const n=x=>Number.isInteger(x)&&x>=0&&x<9;
+  if(!mv||typeof mv!=='object')return null;
+  if(mv.drop){
+    if(!DROPT.includes(mv.t)||!n(mv.tr)||!n(mv.tc))return null;
+    if(!(S.hands[o][mv.t]>0)||S.board[mv.tr][mv.tc]||!dropOk(mv.t,o,mv.tr))return null;
+    return {drop:true,t:mv.t,tr:mv.tr,tc:mv.tc};
+  }
+  if(!n(mv.fr)||!n(mv.fc)||!n(mv.tr)||!n(mv.tc))return null;
+  const p=S.board[mv.fr][mv.fc]; if(!p||p.o!==o)return null;
+  if(!pieceMoves(S,mv.fr,mv.fc).some(m=>m[0]===mv.tr&&m[1]===mv.tc))return null;
+  const r={fr:mv.fr,fc:mv.fc,tr:mv.tr,tc:mv.tc};
+  if(mv.promote===true||mv.promote===false) r.promote=mv.promote;
+  return r;
+}
+const inbox=[], waiters=[];
+function nextMsg(){
+  return new Promise((res,rej)=>{
+    if(inbox.length){ res(inbox.shift()); return; }
+    waiters.push({res,rej});
+  });
+}
+function pushMsg(d){
+  const w=waiters.shift(); if(w) w.res(d); else inbox.push(d);
+}
+function cancelWaiters(){
+  inbox.length=0;
+  while(waiters.length) waiters.shift().rej('cancel');
+}
+function mkNet(room,peer){
+  const n={out:[],seq:0,expect:1,buf:new Map(),timer:null,closed:false};
+  const raw=m=>{ if(n.closed)return; try{ room.emit('g',{...m,a:n.expect-1}).catch(()=>{}); }catch(e){} };
+  n.send=(t,d)=>{ const m={s:++n.seq,t,d}; n.out.push(m); raw(m); };
+  n.recv=m=>{
+    const d=m.data; if(!d||typeof d!=='object'||m.peer!==peer)return;
+    if(Number.isInteger(d.a)) n.out=n.out.filter(x=>x.s>d.a);
+    if(!Number.isInteger(d.s))return;
+    if(d.s<n.expect)return;
+    n.buf.set(d.s,d);
+    while(n.buf.has(n.expect)){ const x=n.buf.get(n.expect); n.buf.delete(n.expect); n.expect++; n.deliver(x); }
+  };
+  n.deliver=()=>{};
+  n.timer=setInterval(()=>{ raw({t:'ack'}); for(const m of n.out.slice(0,8)) raw(m); },1000);
+  n.close=()=>{ n.closed=true; clearInterval(n.timer); };
+  return n;
+}
+async function mpLoop(gen){
+  let turn=0, k=0;
+  try{
+    while(gen===MP.gen&&!over){
+      if(window.__mpHook) window.__mpHook(k,stateHash(S),turn);
+      setTurn(turn);
+      let mv;
+      if(turn===ME){
+        busy=false; phase='player';
+        mv=await new Promise((res,rej)=>{ MP.localMove=res; MP.localCancel=rej; });
+        phase='none'; busy=true;
+      } else {
+        busy=true; phase='none';
+        const m=await nextMsg();
+        if(m.t!=='move'||!m.d) throw new Error('desync:move');
+        if(m.d.h!==stateHash(S)) throw new Error('desync:hash');
+        mv=legalMove(m.d.mv,turn); if(!mv) throw new Error('desync:illegal');
+      }
+      if(gen!==MP.gen)return;
+      await doMove(mv,turn); if(gen!==MP.gen)return; if(endCheck())return;
+      await wait(350); await rampage(turn); if(gen!==MP.gen)return; if(endCheck())return;
+      turn=1-turn; k++;
+    }
+  }catch(e){
+    if(e==='cancel'||gen!==MP.gen)return;
+    console.error(e); mpLost('同期がずれました');
+  }
+}
+function mpBegin(seed){
+  MP.gen++; cancelWaiters(); if(MP.localCancel){ try{ MP.localCancel('cancel'); }catch(e){} }
+  MP.localMove=null;
+  setSeat(MP.me); setRng(mulberry32(seed));
+  resetBoard(); busy=true; phase='none';
+  closeLobby(); $('#mpBtn').textContent='CPU戦';
+  mpLoop(MP.gen);
+}
+function mpLost(msg){
+  if(!MP||MP.lost)return; MP.lost=true;
+  MP.gen++; cancelWaiters(); busy=true; phase='none'; over=true; setTurn(-1);
+  setOver(msg,'lost'); $('#over').classList.add('on');
+}
+function mpLeave(){
+  if(MP){
+    MP.gen++; MP.left=true; cancelWaiters();
+    if(MP.net) MP.net.close();
+    if(MP.hello) clearInterval(MP.hello);
+    for(const f of MP.unsub||[]) try{ f(); }catch(e){}
+    try{ MP.room.leave(); }catch(e){}
+  }
+  MP=null; $('#mpBtn').textContent='対人'; start();
+}
+// 部屋に入る(host: 部屋を作る側=先手、guest: 入る側=後手)
+async function mpOpen(role,code){
+  const R=window.__room; if(!R)return false;
+  let room;
+  try{ room=await R.join('ss-'+code); }catch(e){ return false; }
+  const myPeer=()=>{ const p=room.peers().find(x=>x.isMe&&x.sameTab); return p?p.peer:null; };
+  MP={room,code,role,me:role==='host'?0:1,gen:0,net:null,opp:null,unsub:[],lost:false,left:false,seed:0};
+  const mine=MP;
+  const pair=(peer,seed)=>{
+    mine.opp=peer; mine.net=mkNet(room,peer);
+    mine.net.deliver=d=>{
+      if(d.t==='move'||d.t==='promo') pushMsg(d);
+      else if(d.t==='new'&&mine.role==='guest') mpBegin(d.d.seed);
+      else if(d.t==='rematch'&&mine.role==='host'&&over&&!mine.lost) hostRestart();
+    };
+    mpBegin(seed);
+  };
+  const hostRestart=()=>{ const seed=(Math.random()*2**31)>>>0; mine.net.send('new',{seed}); mpBegin(seed); };
+  mine.hostRestart=hostRestart;
+  mine.unsub.push(room.on('g',m=>{
+    if(mine.left||m.isMe)return;
+    const d=m.data; if(!d||typeof d!=='object')return;
+    if(!mine.opp){
+      if(role==='host'&&d.t==='hello'){
+        const seed=(Math.random()*2**31)>>>0; mine.seed=seed;
+        pair(m.peer,seed);
+        const send=()=>{ if(!mine.left&&!mine.acked) room.emit('g',{t:'start',for:m.peer,seed}).catch(()=>{}); };
+        send(); mine.startTimer=setInterval(()=>{ if(mine.left||mine.acked){ clearInterval(mine.startTimer); return; } send(); },800);
+      } else if(role==='guest'&&d.t==='start'&&d.for===myPeer()&&Number.isInteger(d.seed)){
+        clearInterval(mine.hello); pair(m.peer,d.seed);
+        mine.net.send('ready',{});
+      }
+      return;
+    }
+    if(m.peer===mine.opp){ mine.acked=true; mine.net.recv(m); }
+  }));
+  mine.unsub.push(room.onPeers(ch=>{
+    if(!mine.opp||mine.left||mine.lost)return;
+    const here=ch.peers.some(p=>p.peer===mine.opp);
+    if(!here){
+      clearTimeout(mine.dropTimer);
+      mine.dropTimer=setTimeout(()=>{ if(!mine.left&&!room.peers().some(p=>p.peer===mine.opp)) mpLost('相手が切断しました'); },4000);
+    } else clearTimeout(mine.dropTimer);
+  }));
+  if(role==='guest'){
+    const hello=()=>room.emit('g',{t:'hello'}).catch(()=>{});
+    setTimeout(hello,300); mine.hello=setInterval(hello,1000);
+    setTimeout(()=>{ if(!mine.opp&&!mine.left){ lobbyMsg('つながりませんでした'); mpLeaveToLobby(); } },12000);
+  }
+  return true;
+}
+function mpLeaveToLobby(){
+  if(MP&&!MP.opp){ const m=MP; MP=null; m.left=true; if(m.hello)clearInterval(m.hello); for(const f of m.unsub||[]) try{ f(); }catch(e){} try{ m.room.leave(); }catch(e){} }
+}
+
+// ---------- 対戦ロビー ----------
+const CODE_CH='abcdefghjkmnpqrstuvwxyz23456789';
+const genCode=()=>Array.from({length:4},()=>CODE_CH[Math.floor(Math.random()*CODE_CH.length)]).join('');
+function lobbyView(v){ const l=$('#lobby'); l.dataset.v=v; l.classList.add('on'); }
+function closeLobby(){ $('#lobby').classList.remove('on'); }
+function lobbyMsg(t){ $('#lbMsg').textContent=t||''; }
+// 直接つなぐ(Claudeなしで遊べる): 招待コードと返信コードを2回やりとりして、端末どうしを直接つなぐ
+const RTC_CFG={iceServers:[{urls:'stun:stun.l.google.com:19302'}]};
+const b64u=u8=>{ let s=''; for(let i=0;i<u8.length;i++) s+=String.fromCharCode(u8[i]); return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); };
+const unb64u=s=>{ s=s.replace(/-/g,'+').replace(/_/g,'/'); while(s.length%4) s+='='; return Uint8Array.from(atob(s),c=>c.charCodeAt(0)); };
+async function pipe(u8,Stream,fmt){
+  const st=new Stream(fmt), w=st.writable.getWriter(); w.write(u8); w.close();
+  return new Uint8Array(await new Response(st.readable).arrayBuffer());
+}
+async function pack(o){
+  const raw=new TextEncoder().encode(JSON.stringify(o));
+  if(typeof CompressionStream!=='undefined') return 'z'+b64u(await pipe(raw,CompressionStream,'deflate-raw'));
+  return 'p'+b64u(raw);
+}
+async function unpack(s){
+  s=(s||'').replace(/\s+/g,''); if(s.length<8) throw new Error('bad');
+  const u=unb64u(s.slice(1));
+  const raw=s[0]==='z'?await pipe(u,DecompressionStream,'deflate-raw'):u;
+  return JSON.parse(new TextDecoder().decode(raw));
+}
+function iceDone(pc){
+  return new Promise(res=>{
+    if(pc.iceGatheringState==='complete'){ res(); return; }
+    const t=setTimeout(res,3500);
+    pc.addEventListener('icegatheringstatechange',()=>{ if(pc.iceGatheringState==='complete'){ clearTimeout(t); res(); } });
+  });
+}
+// データ通路を、プラットフォームの room と同じ形に見せる
+function dcRoom(dc,pc,meId,oppId){
+  const hs={}, ph=[]; let alive=dc.readyState==='open';
+  const list=()=>[{peer:meId,isMe:true,sameTab:true},...(alive?[{peer:oppId,isMe:false,sameTab:false}]:[])];
+  const fire=()=>{ const l=list(); ph.slice().forEach(h=>h({peers:l,joined:[],left:[],updated:[]})); };
+  dc.onmessage=e=>{
+    let m; try{ m=JSON.parse(e.data); }catch(x){ return; }
+    if(!m||typeof m.topic!=='string')return;
+    (hs[m.topic]||[]).slice().forEach(h=>h({topic:m.topic,data:m.data,peer:oppId,isMe:false,sameTab:false}));
+  };
+  const down=()=>{ if(alive){ alive=false; fire(); } };
+  dc.onclose=down; pc.onconnectionstatechange=()=>{ if(['failed','closed','disconnected'].includes(pc.connectionState)) down(); };
+  return {
+    emit:(topic,data)=>{ try{ if(dc.readyState==='open') dc.send(JSON.stringify({topic,data})); }catch(x){} return Promise.resolve(); },
+    on:(topic,h)=>{ (hs[topic]=hs[topic]||[]).push(h); return ()=>{ hs[topic]=(hs[topic]||[]).filter(x=>x!==h); }; },
+    peers:list,
+    onPeers:h=>{ ph.push(h); return ()=>{ const i=ph.indexOf(h); if(i>=0)ph.splice(i,1); }; },
+    leave:async()=>{ try{ dc.close(); pc.close(); }catch(x){} }
+  };
+}
+let rtcTmp=null;
+async function rtcMake(){
+  const pc=new RTCPeerConnection(RTC_CFG), dc=pc.createDataChannel('g');
+  await pc.setLocalDescription(await pc.createOffer()); await iceDone(pc);
+  rtcTmp={pc,dc};
+  return pack({t:'o',sdp:pc.localDescription.sdp});
+}
+async function rtcFinish(ansCode){
+  const a=await unpack(ansCode); if(a.t!=='a'||!rtcTmp) throw new Error('bad');
+  const {pc,dc}=rtcTmp;
+  await pc.setRemoteDescription({type:'answer',sdp:a.sdp});
+  await new Promise((res,rej)=>{
+    if(dc.readyState==='open'){ res(); return; }
+    const t=setTimeout(()=>rej(new Error('timeout')),20000);
+    dc.onopen=()=>{ clearTimeout(t); res(); };
+  });
+  const room=dcRoom(dc,pc,'host','guest');
+  window.__room={join:async()=>room};
+  return mpOpen('host','rtc');
+}
+async function rtcAnswer(offerCode){
+  const o=await unpack(offerCode); if(o.t!=='o') throw new Error('bad');
+  const pc=new RTCPeerConnection(RTC_CFG);
+  const dcP=new Promise(res=>{ pc.ondatachannel=e=>res(e.channel); });
+  await pc.setRemoteDescription({type:'offer',sdp:o.sdp});
+  await pc.setLocalDescription(await pc.createAnswer()); await iceDone(pc);
+  const code=await pack({t:'a',sdp:pc.localDescription.sdp});
+  dcP.then(async dc=>{
+    if(dc.readyState!=='open') await new Promise(res=>{ dc.onopen=res; });
+    const room=dcRoom(dc,pc,'guest','host');
+    window.__room={join:async()=>room};
+    mpOpen('guest','rtc');
+  });
+  return code;
+}
+async function copyText(el){
+  el.focus(); el.select();
+  try{ await navigator.clipboard.writeText(el.value); return true; }catch(e){ try{ return document.execCommand('copy'); }catch(x){ return false; } }
+}
+function initLobby(){
+  const platform=!!window.__room;
+  const manual=!platform&&!window.claude&&typeof RTCPeerConnection!=='undefined';
+  if(!platform&&!manual)return;
+  const btn=$('#mpBtn'); btn.style.display='block';
+  btn.onclick=()=>{
+    if(MP&&MP.opp){ mpLeave(); return; }
+    lobbyMsg(''); lobbyView('home');
+  };
+  $('#lbX').onclick=()=>{ mpLeaveToLobby(); closeLobby(); };
+  if(platform){
+    $('#lbMake').onclick=async()=>{
+      lobbyMsg('');
+      const code=genCode(); const ok=await mpOpen('host',code);
+      if(!ok){ lobbyMsg('部屋を作れませんでした'); return; }
+      $('#lbCode').textContent=code.toUpperCase(); lobbyView('wait');
+    };
+    $('#lbJoin').onclick=()=>{ lobbyMsg(''); lobbyView('enter'); $('#lbIn').value=''; $('#lbIn').focus(); };
+    $('#lbGo').onclick=async()=>{
+      const code=$('#lbIn').value.trim().toLowerCase();
+      if(!/^[a-z0-9]{4}$/.test(code)){ lobbyMsg('4文字のコードを入れてください'); return; }
+      lobbyMsg('接続中…');
+      const ok=await mpOpen('guest',code);
+      if(!ok) lobbyMsg('つながりませんでした');
+    };
+    return;
+  }
+  // 直接つなぐ
+  $('#lbMake').onclick=async()=>{
+    lobbyMsg('コードを作っています…'); lobbyView('mk'); $('#mkAns').value='';
+    try{ $('#mkCode').value=await rtcMake(); lobbyMsg(''); }catch(e){ lobbyMsg('コードを作れませんでした'); lobbyView('home'); }
+  };
+  $('#mkCopy').onclick=()=>copyText($('#mkCode'));
+  $('#mkGo').onclick=async()=>{
+    lobbyMsg('接続中…');
+    try{ const ok=await rtcFinish($('#mkAns').value); if(!ok) lobbyMsg('つながりませんでした'); }
+    catch(e){ lobbyMsg('コードが正しくないか、つながりませんでした'); }
+  };
+  $('#lbJoin').onclick=()=>{ lobbyMsg(''); lobbyView('jn'); $('#jnOffer').value=''; $('#jnCode').value=''; $('#jnOut').classList.remove('on'); };
+  $('#jnGo').onclick=async()=>{
+    lobbyMsg('コードを作っています…');
+    try{ $('#jnCode').value=await rtcAnswer($('#jnOffer').value); $('#jnOut').classList.add('on'); lobbyMsg('このコードを相手に送ってください'); }
+    catch(e){ lobbyMsg('コードが正しくありません'); }
+  };
+  $('#jnCopy').onclick=()=>copyText($('#jnCode'));
+}
+
+// ---------- 画面 ----------
+function layout(){
+  const w=window.innerWidth||390, h=window.innerHeight||700;
+  renderer.setSize(w,h,false);
+  cam.aspect=w/h; camera.aspect=cam.aspect;
+  const vf=cam.fov*PI/180, hf=2*Math.atan(Math.tan(vf/2)*cam.aspect);
+  const dist=Math.max(5.8/Math.tan(hf/2),7.4/Math.tan(vf/2));
+  cam.tz=0.2*SGN; cam.x=0; cam.y=dist*Math.sin(cam.el)+cam.ty; cam.z=dist*Math.cos(cam.el)*SGN+cam.tz;
+  camera.position.set(cam.x,cam.y,cam.z); camera.lookAt(cam.tx,cam.ty,cam.tz); camera.updateProjectionMatrix();
+}
+window.addEventListener('resize',layout);
+function frame(now){ stepTweens(now); renderer.render(scene,camera); requestAnimationFrame(frame); }
+$('#again').addEventListener('click',()=>{
+  if(overMode==='lost'){ mpLeave(); return; }
+  if(MP&&MP.opp){ if(MP.role==='host') MP.hostRestart(); else MP.net.send('rematch',{}); return; }
+  start();
+});
+layout(); start(); requestAnimationFrame(frame);
+(async()=>{
+  try{ if(window.claude&&claude.use){ window.__room=await claude.use('room'); } }catch(e){ window.__room=null; }
+  initLobby();
+})();
+function loadState(st){
+  for(const pc of meshes.values()) removePc(pc); meshes.clear();
+  for(const o of [0,1]) for(const t of DROPT){ handMeshes[o][t].forEach(removePc); handMeshes[o][t].length=0; }
+  S=st; over=false; sel=null; hints=[]; sync(); renderMarks(); phase='player'; busy=false;
+}
+async function forceRampage(kind,o){
+  const plan=planRampage(S,o,Math.random,kind);
+  if(!plan||plan.kind!==kind) return null;
+  try{ await rampageVisual(plan,o); }catch(e){ console.error(e); }
+  plan.apply(await choosePromos(plan,o)); sync(); renderMarks(); return plan.kind;
+}
+window.__test={loadState,forceRampage,onCell,onChip,rayPlane,project,get S(){return S;},get busy(){return busy;},get phase(){return phase;},get over(){return over;},hintsNow:()=>hints.slice(),get me(){return ME;},get mp(){return !!MP;},cam};
+})();
+
+</script>
+</body>
+</html>
